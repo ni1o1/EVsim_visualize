@@ -12,6 +12,7 @@
     "gen:grid-avg": "node scripts/generate_grid_hourly_avg.cjs",
     "gen:grid-avg-split": "node scripts/generate_grid_hourly_avg_split.cjs"
     ,"gen:power-opt": "node scripts/generate_power_optimize.cjs"
+    ,"gen:pvout-opt": "node scripts/generate_pvout_optimize.cjs"
   },
   "dependencies": {
     "@ant-design/icons": "^6.1.0",
