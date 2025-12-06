@@ -1,0 +1,642 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>EV Tycoon Finance</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { 
+            font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+            background-color: #f8fafc; 
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+        
+        canvas { 
+            width: 100%;
+            height: auto;
+            background-color: #fff; 
+            border-radius: 12px; 
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); 
+            display: block;
+        }
+
+        /* 状态卡片样式优化 */
+        .stat-card { 
+            background: white; 
+            padding: 8px 6px; 
+            border-radius: 8px; 
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05); 
+            text-align: center; 
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        .btn { transition: all 0.1s; }
+        .btn:active { transform: scale(0.95); }
+        .btn:disabled { opacity: 0.5; filter: grayscale(100%); cursor: not-allowed; }
+
+        .float-text {
+            position: absolute;
+            font-weight: 800;
+            pointer-events: none;
+            animation: floatUp 1.5s ease-out forwards;
+            z-index: 50;
+            text-shadow: 1px 1px 0 #fff;
+        }
+        @keyframes floatUp {
+            0% { transform: translateY(0) scale(0.8); opacity: 0; }
+            20% { transform: translateY(-20px) scale(1.2); opacity: 1; }
+            100% { transform: translateY(-60px) scale(1); opacity: 0; }
+        }
+
+        .power-bar-bg { background: #e2e8f0; height: 6px; border-radius: 3px; overflow: hidden; display: flex; }
+        .power-bar-seg { height: 100%; transition: width 0.3s; }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col p-2 max-w-md mx-auto md:max-w-4xl">
+
+    <!-- 顶部状态栏：财务看板 (2行2列布局适应移动端) -->
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-2 mb-2 w-full">
+        <!-- 资金 -->
+        <div class="stat-card border-l-4 border-green-500">
+            <div class="text-[10px] text-gray-500">当前资金</div>
+            <div class="font-bold text-green-700 text-lg" id="ui-money">$6000</div>
+        </div>
+        
+        <!-- 时钟 (放在第二位，视觉平衡) -->
+        <div class="stat-card border-l-4 border-slate-700 bg-slate-800 text-white">
+            <div class="text-2xl font-mono tracking-widest leading-none" id="ui-clock">00:00</div>
+            <div class="text-[10px] text-gray-400 mt-1" id="ui-day">Day 1</div>
+        </div>
+
+        <!-- 日常成本 -->
+        <div class="stat-card border-l-4 border-orange-400">
+            <div class="text-[10px] text-gray-500">日运营成本</div>
+            <div class="font-bold text-orange-600 text-lg" id="ui-daily-cost">-$200</div>
+        </div>
+
+        <!-- 租金 (大Boss) -->
+        <div class="stat-card border-l-4 border-red-500 bg-red-50">
+            <div class="flex justify-between items-center px-1">
+                <span class="text-[10px] text-gray-500">周租金</span>
+                <span class="text-[10px] font-bold text-red-400" id="ui-rent-countdown">6天后</span>
+            </div>
+            <div class="font-bold text-red-600 text-lg" id="ui-weekly-rent">-$2500</div>
+        </div>
+    </div>
+
+    <!-- 游戏主画面 -->
+    <div class="relative w-full mb-2">
+        <!-- 能量监控浮层 -->
+        <div class="absolute top-2 left-2 bg-white/95 backdrop-blur-sm p-2 rounded-lg shadow-sm border border-gray-200 z-10 text-xs w-48">
+            <div class="flex justify-between mb-1">
+                <span class="font-bold text-gray-600">实时负载监控</span>
+                <span class="font-bold text-black" id="ui-load">0 kW</span>
+            </div>
+            <div class="power-bar-bg mb-1">
+                <div id="bar-solar" class="power-bar-seg bg-yellow-400" style="width:0%"></div>
+                <div id="bar-batt" class="power-bar-seg bg-green-500" style="width:0%"></div>
+                <div id="bar-grid" class="power-bar-seg bg-red-500" style="width:0%"></div>
+            </div>
+            <div class="flex justify-between text-[9px] text-gray-500">
+                <span class="text-yellow-600">⚡光伏</span>
+                <span class="text-green-600">🔋电池</span>
+                <span class="text-red-500">🔌电网</span>
+            </div>
+        </div>
+
+        <canvas id="gameCanvas" width="800" height="480"></canvas>
+        <div id="fx-container" class="absolute top-0 left-0 w-full h-full pointer-events-none overflow-hidden"></div>
+    </div>
+
+    <!-- 控制面板 -->
+    <div class="w-full bg-white p-3 rounded-xl shadow-lg border border-gray-100 flex-1 flex flex-col gap-3">
+        
+        <!-- 时间与电价控制 -->
+        <div class="flex justify-between items-center border-b border-gray-100 pb-2">
+            <div class="flex flex-col">
+                <div class="text-xs text-gray-500">当前电网电价: <span id="ui-grid-price" class="font-bold text-gray-800">$0.40</span></div>
+                <button id="pause-btn" onclick="togglePause()" class="mt-1 px-4 py-1 bg-gray-800 text-white rounded-md text-sm font-bold shadow hover:bg-black transition flex items-center gap-1">
+                    <span>⏸</span> <span>暂停</span>
+                </button>
+            </div>
+            <div class="flex gap-1">
+                 <button onclick="setSpeed(200)" class="speed-btn btn px-3 py-1 bg-blue-100 text-blue-800 rounded text-xs font-bold border border-blue-200" id="speed-1">1x</button>
+                 <button onclick="setSpeed(50)" class="speed-btn btn px-3 py-1 bg-gray-100 text-gray-600 rounded text-xs font-bold border border-gray-200" id="speed-2">4x</button>
+            </div>
+        </div>
+
+        <!-- 资产购买 -->
+        <div class="grid grid-cols-4 gap-2">
+            <button onclick="buyAsset('slowCharger')" class="btn bg-blue-50 border border-blue-200 rounded h-16 flex flex-col items-center justify-center hover:bg-blue-100 relative overflow-hidden">
+                <span class="font-bold text-blue-800 text-xs z-10">慢充桩</span>
+                <span class="text-[10px] text-gray-500 z-10">$3,000</span>
+                <span class="text-[10px] bg-blue-200 px-1.5 rounded-full text-blue-800 z-10 mt-0.5" id="count-slow">0</span>
+            </button>
+            <button onclick="buyAsset('fastCharger')" class="btn bg-purple-50 border border-purple-200 rounded h-16 flex flex-col items-center justify-center hover:bg-purple-100">
+                <span class="font-bold text-purple-800 text-xs">快充桩</span>
+                <span class="text-[10px] text-gray-500">$15,000</span>
+                <span class="text-[10px] bg-purple-200 px-1.5 rounded-full text-purple-800 mt-0.5" id="count-fast">0</span>
+            </button>
+            <button onclick="buyAsset('solar')" class="btn bg-yellow-50 border border-yellow-200 rounded h-16 flex flex-col items-center justify-center hover:bg-yellow-100">
+                <span class="font-bold text-yellow-800 text-xs">光伏板</span>
+                <span class="text-[10px] text-gray-500">$8,000</span>
+                <span class="text-[10px] bg-yellow-200 px-1.5 rounded-full text-yellow-800 mt-0.5" id="count-solar">0</span>
+            </button>
+            <button onclick="buyAsset('battery')" class="btn bg-green-50 border border-green-200 rounded h-16 flex flex-col items-center justify-center hover:bg-green-100">
+                <span class="font-bold text-green-800 text-xs">储能柜</span>
+                <span class="text-[10px] text-gray-500">$12,000</span>
+                <span class="text-[10px] bg-green-200 px-1.5 rounded-full text-green-800 mt-0.5" id="count-battery">0</span>
+            </button>
+        </div>
+
+        <!-- 定价滑块 -->
+        <div class="bg-slate-50 p-2 rounded-lg border border-slate-100">
+            <div class="flex justify-between mb-1">
+                <label class="text-xs font-bold text-gray-600">服务单价 ($/度)</label>
+                <span id="price-display" class="font-bold text-blue-600">$1.30</span>
+            </div>
+            <input type="range" id="price-slider" min="0.6" max="3.0" step="0.1" value="1.3" class="w-full accent-blue-600 cursor-pointer" oninput="updatePrice(this.value)">
+            <p class="text-[10px] text-gray-400 mt-1">提示：平衡价格以最大化收入。价格过高会吓跑顾客。</p>
+        </div>
+    </div>
+
+    <!-- 弹窗 -->
+    <div id="modal-overlay" class="hidden fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-6 backdrop-blur-sm">
+        <div class="bg-white p-6 rounded-2xl text-center w-full max-w-sm shadow-2xl border-4 border-gray-800">
+            <div class="text-5xl mb-2" id="modal-icon">👋</div>
+            <h2 class="text-2xl font-bold mb-2 text-gray-800" id="modal-title">准备开业</h2>
+            <p class="text-gray-600 mb-6 text-sm" id="modal-msg">欢迎来到你的充电站。</p>
+            <button onclick="closeModal()" class="w-full py-3 bg-black text-white font-bold rounded-lg hover:bg-gray-800 transition">开始运营</button>
+        </div>
+    </div>
+
+<script>
+/**
+ * 游戏配置
+ */
+const CONFIG = {
+    tickRate: 10, 
+    dailyOpCost: 200, // 稍微提高日常成本，增加紧迫感
+    weeklyRent: 2500, // 每周一大笔
+    
+    costs: { 
+        slowCharger: 3000, 
+        fastCharger: 15000, 
+        solar: 8000, 
+        battery: 12000 
+    },
+    
+    batteryCap: 200, 
+    batteryRate: 50, 
+    solarMax: 30, 
+
+    gridPrices: [
+        0.3, 0.3, 0.3, 0.3, 0.3, 0.3, 0.4, 
+        0.8, 1.2, 1.5, 1.5, 1.2, 0.8, 0.8, 
+        1.0, 1.2, 1.8, 1.8, 1.5, 1.0, 0.8, 
+        0.6, 0.5, 0.4                     
+    ],
+    
+    trafficCurve: [
+        5, 5, 5, 5, 10, 20, 40, 
+        80, 90, 80, 70, 60, 60, 60, 
+        70, 90, 100, 95, 80, 60, 40, 
+        20, 10, 5
+    ]
+};
+
+let state = {
+    money: 6000, // 初始资金
+    day: 1,
+    hour: 0,
+    minute: 0,
+    paused: true,
+    gameSpeed: 200,
+    assets: { slowCharger: 2, fastCharger: 0, solar: 0, battery: 0 },
+    batteryKwh: 0,
+    price: 1.3,
+    cars: [],
+    lastTickData: { load: 0, solar: 0, batt: 0, grid: 0 },
+    timer: null
+};
+
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+
+// --- 逻辑循环 ---
+function tick() {
+    if (state.paused) return;
+
+    state.minute += 10;
+    if (state.minute >= 60) {
+        state.minute = 0;
+        state.hour++;
+        if (state.hour >= 24) {
+            state.hour = 0;
+            dailySettle();
+        }
+    }
+
+    const gridPrice = CONFIG.gridPrices[state.hour];
+    const traffic = CONFIG.trafficCurve[state.hour];
+    
+    trySpawnCar(traffic, gridPrice);
+    processEnergy(gridPrice);
+
+    state.cars = state.cars.filter(c => {
+        c.ticksLeft--;
+        return c.ticksLeft > 0;
+    });
+
+    updateUI();
+    
+    state.timer = setTimeout(tick, state.gameSpeed);
+}
+
+function trySpawnCar(baseChance, gridPrice) {
+    const premium = state.price - (gridPrice + 0.5); 
+    let chanceMod = 1.0;
+    if (premium > 0.5) chanceMod = 0.2; 
+    else if (premium < 0) chanceMod = 1.5; 
+
+    const finalChance = baseChance * chanceMod;
+
+    // 慢充
+    if (Math.random() * 100 < finalChance) {
+        const slot = findFreeSlot('slow');
+        if (slot !== -1) {
+            const durationTicks = 12 + Math.floor(Math.random() * 24);
+            const kwhTotal = 30 + Math.floor(Math.random() * 50);
+            state.cars.push({
+                type: 'slow', slot: slot, ticksLeft: durationTicks,
+                kwhTotal: kwhTotal, kwhPerTick: kwhTotal / durationTicks,
+                color: '#3b82f6', isCharging: false
+            });
+        }
+    }
+    // 快充
+    if (Math.random() * 100 < finalChance * 0.4) {
+        const slot = findFreeSlot('fast');
+        if (slot !== -1) {
+            const durationTicks = 3 + Math.floor(Math.random() * 2);
+            const kwhTotal = 40 + Math.floor(Math.random() * 50);
+            state.cars.push({
+                type: 'fast', slot: slot, ticksLeft: durationTicks,
+                kwhTotal: kwhTotal, kwhPerTick: kwhTotal / durationTicks,
+                color: '#9333ea', isCharging: false
+            });
+        }
+    }
+}
+
+function findFreeSlot(type) {
+    const limit = state.assets[type + 'Charger'];
+    for(let i=0; i<limit; i++) {
+        if (!state.cars.some(c => c.type === type && c.slot === i)) return i;
+    }
+    return -1;
+}
+
+function processEnergy(gridPrice) {
+    let totalLoadKwh = 0;
+    state.cars.forEach(c => totalLoadKwh += c.kwhPerTick);
+    
+    // 光伏
+    let sunHeight = 0;
+    if (state.hour >= 6 && state.hour <= 18) {
+        const x = (state.hour - 6) / 12 * Math.PI; 
+        sunHeight = Math.sin(x);
+    }
+    const weatherMod = 0.8 + Math.random() * 0.2; 
+    const solarOutputKwh = state.assets.solar * CONFIG.solarMax * sunHeight * weatherMod; 
+
+    let remainLoad = totalLoadKwh;
+    
+    // A. 光伏直供
+    let usedSolar = Math.min(remainLoad, solarOutputKwh);
+    remainLoad -= usedSolar;
+    let unusedSolar = solarOutputKwh - usedSolar;
+
+    // B. 存电池
+    const batMax = state.assets.battery * CONFIG.batteryCap;
+    if (unusedSolar > 0 && state.batteryKwh < batMax) {
+        const charge = Math.min(unusedSolar, batMax - state.batteryKwh);
+        state.batteryKwh += charge;
+    }
+
+    // C. 电池放电 (电价>0.6 或 有需求)
+    let usedBatt = 0;
+    let dischargeCap = state.assets.battery * CONFIG.batteryRate; 
+    
+    if (remainLoad > 0 && state.batteryKwh > 0 && gridPrice > 0.6) {
+        const canProvide = Math.min(state.batteryKwh, dischargeCap, remainLoad);
+        state.batteryKwh -= canProvide;
+        usedBatt = canProvide;
+        remainLoad -= usedBatt;
+    }
+
+    // D. 谷电充电 (电价<=0.4)
+    let gridChargeBatt = 0;
+    if (gridPrice <= 0.4 && state.batteryKwh < batMax) {
+        const space = batMax - state.batteryKwh;
+        const canCharge = Math.min(space, dischargeCap);
+        state.batteryKwh += canCharge;
+        gridChargeBatt = canCharge;
+    }
+
+    let usedGrid = remainLoad + gridChargeBatt;
+
+    const revenue = totalLoadKwh * state.price;
+    const cost = usedGrid * gridPrice;
+    const profit = revenue - cost;
+
+    state.money += profit;
+
+    state.lastTickData = {
+        load: totalLoadKwh * 6, // kW
+        solar: usedSolar * 6,
+        batt: usedBatt * 6,
+        grid: usedGrid * 6
+    };
+    
+    if (profit !== 0 && state.minute % 30 === 0) {
+        const col = profit > 0 ? '#16a34a' : '#dc2626';
+        const txt = profit > 0 ? `+$${profit.toFixed(0)}` : `-$${Math.abs(profit).toFixed(0)}`;
+        spawnFloatText(txt, col);
+    }
+}
+
+function dailySettle() {
+    state.day++;
+    
+    // 每日运营成本扣除
+    state.money -= CONFIG.dailyOpCost;
+    spawnFloatText(`日成本 -$${CONFIG.dailyOpCost}`, '#f97316'); // Orange
+
+    // 周租金扣除
+    if ((state.day - 1) % 7 === 0) {
+        state.money -= CONFIG.weeklyRent;
+        showModal('交租日', `已支付场地租金 $${CONFIG.weeklyRent}`, state.money < 0 ? '破产警告' : '继续经营');
+    } else if ((state.day - 1) % 7 === 6) {
+        spawnFloatText('⚠️ 明日交租!', '#f59e0b');
+    }
+
+    if (state.money < -3000) { 
+        showModal('破产清算', `资金链彻底断裂。\n存活时间: ${state.day}天`, '结束');
+        state.paused = true;
+    }
+}
+
+// --- UI ---
+function togglePause() {
+    state.paused = !state.paused;
+    const btn = document.getElementById('pause-btn');
+    if (state.paused) {
+        btn.innerHTML = "<span>▶</span> <span>继续</span>";
+        btn.classList.add('bg-green-600');
+        btn.classList.remove('bg-gray-800');
+        clearTimeout(state.timer);
+    } else {
+        btn.innerHTML = "<span>⏸</span> <span>暂停</span>";
+        btn.classList.remove('bg-green-600');
+        btn.classList.add('bg-gray-800');
+        tick(); 
+    }
+}
+
+function setSpeed(ms) {
+    state.gameSpeed = ms;
+    document.getElementById('speed-1').className = ms===200 ? 'speed-btn btn px-3 py-1 bg-blue-100 text-blue-800 rounded text-xs font-bold border border-blue-200' : 'speed-btn btn px-3 py-1 bg-gray-100 text-gray-600 rounded text-xs font-bold border border-gray-200';
+    document.getElementById('speed-2').className = ms===50 ? 'speed-btn btn px-3 py-1 bg-blue-100 text-blue-800 rounded text-xs font-bold border border-blue-200' : 'speed-btn btn px-3 py-1 bg-gray-100 text-gray-600 rounded text-xs font-bold border border-gray-200';
+}
+
+function buyAsset(type) {
+    const cost = CONFIG.costs[type];
+    if (state.money >= cost) {
+        state.money -= cost;
+        state.assets[type]++;
+        spawnFloatText(`购买 -$${cost}`, '#2563eb');
+        updateUI();
+    } else {
+        spawnFloatText('资金不足', '#dc2626');
+        // 视觉反馈
+        document.getElementById('ui-money').parentElement.classList.add('bg-red-100');
+        setTimeout(()=>document.getElementById('ui-money').parentElement.classList.remove('bg-red-100'), 200);
+    }
+}
+
+function updatePrice(val) {
+    state.price = parseFloat(val);
+    document.getElementById('price-display').innerText = `$${state.price.toFixed(2)}`;
+}
+
+function updateUI() {
+    document.getElementById('ui-money').innerText = `$${Math.floor(state.money)}`;
+    
+    const hStr = state.hour.toString().padStart(2, '0');
+    const mStr = state.minute.toString().padStart(2, '0');
+    document.getElementById('ui-clock').innerText = `${hStr}:${mStr}`;
+    document.getElementById('ui-day').innerText = `Day ${state.day}`;
+    
+    // 财务看板更新
+    document.getElementById('ui-daily-cost').innerText = `-$${CONFIG.dailyOpCost}`;
+    document.getElementById('ui-weekly-rent').innerText = `-$${CONFIG.weeklyRent}`;
+
+    const dayInWeek = (state.day - 1) % 7 + 1;
+    const daysLeft = 8 - dayInWeek;
+    const rentEl = document.getElementById('ui-rent-countdown');
+    rentEl.innerText = daysLeft === 1 ? '明天!' : `${daysLeft}天后`;
+    if (daysLeft <= 2) rentEl.parentElement.parentElement.classList.add('animate-pulse'); // 整个卡片闪烁
+    else rentEl.parentElement.parentElement.classList.remove('animate-pulse');
+
+    // Grid Price Color
+    const price = CONFIG.gridPrices[state.hour];
+    const priceEl = document.getElementById('ui-grid-price');
+    priceEl.innerText = `$${price.toFixed(2)}`;
+    priceEl.className = price >= 1.5 ? 'font-bold text-red-600' : (price <= 0.4 ? 'font-bold text-green-600' : 'font-bold text-gray-800');
+
+    // Power Monitor
+    const d = state.lastTickData;
+    const totalW = d.load > 0 ? d.load : 1;
+    const pSolar = Math.min(100, (d.solar / totalW) * 100);
+    const pBatt = Math.min(100, (d.batt / totalW) * 100);
+    const pGrid = Math.min(100, (d.grid / totalW) * 100);
+
+    document.getElementById('ui-load').innerText = `${d.load.toFixed(0)} kW`;
+    document.getElementById('bar-solar').style.width = `${pSolar}%`;
+    document.getElementById('bar-batt').style.width = `${pBatt}%`;
+    document.getElementById('bar-grid').style.width = `${pGrid}%`;
+
+    ['slow', 'fast', 'solar', 'battery'].forEach(k => {
+        document.getElementById(`count-${k}`).innerText = state.assets[k] || state.assets[k+'Charger'];
+    });
+}
+
+function spawnFloatText(text, color) {
+    const el = document.createElement('div');
+    el.className = 'float-text';
+    el.innerText = text;
+    el.style.color = color;
+    el.style.left = (20 + Math.random() * 60) + '%';
+    el.style.top = (30 + Math.random() * 20) + '%';
+    document.getElementById('fx-container').appendChild(el);
+    setTimeout(() => el.remove(), 1500);
+}
+
+function showModal(title, msg, btnText) {
+    const ol = document.getElementById('modal-overlay');
+    document.getElementById('modal-title').innerText = title;
+    document.getElementById('modal-msg').innerText = msg;
+    document.querySelector('#modal-overlay button').innerText = btnText;
+    ol.classList.remove('hidden');
+    if (!state.paused) togglePause();
+}
+function closeModal() {
+    document.getElementById('modal-overlay').classList.add('hidden');
+    if (state.money > -3000) togglePause();
+}
+
+// --- Draw ---
+function draw() {
+    ctx.clearRect(0,0, canvas.width, canvas.height);
+    
+    const h = state.hour;
+    let bg = '#e0f2fe'; 
+    if (h < 6 || h > 19) bg = '#0f172a'; 
+    else if (h >= 17) bg = '#fb923c'; 
+    
+    if (CONFIG.gridPrices[h] >= 1.5) {
+        const grad = ctx.createLinearGradient(0,0,0,canvas.height);
+        grad.addColorStop(0, '#fecaca'); 
+        grad.addColorStop(1, '#fff');
+        ctx.fillStyle = grad;
+    } else {
+        ctx.fillStyle = bg;
+    }
+    ctx.fillRect(0,0, canvas.width, canvas.height);
+
+    drawEnergyHub(40, 20);
+    drawChargers();
+
+    requestAnimationFrame(draw);
+}
+
+function drawEnergyHub(x, y) {
+    ctx.fillStyle = 'rgba(255,255,255,0.9)';
+    ctx.roundRect(x, y, 220, 100, 12);
+    ctx.fill();
+    
+    const eff = (state.hour >= 6 && state.hour <= 18) ? Math.sin((state.hour-6)/12*Math.PI) : 0;
+    ctx.fillStyle = '#f59e0b';
+    ctx.font = 'bold 12px sans-serif';
+    ctx.fillText(`☀️ 光伏阵列 x${state.assets.solar}`, x+10, y+25);
+    ctx.fillStyle = '#fde68a';
+    ctx.fillRect(x+10, y+35, 80, 8);
+    ctx.fillStyle = '#d97706';
+    ctx.fillRect(x+10, y+35, 80 * eff, 8);
+    
+    const maxKwh = state.assets.battery * CONFIG.batteryCap;
+    const pct = maxKwh > 0 ? state.batteryKwh / maxKwh : 0;
+    ctx.fillStyle = '#16a34a';
+    ctx.fillText(`🔋 储能柜 x${state.assets.battery}`, x+120, y+25);
+    ctx.strokeStyle = '#334151';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(x+120, y+35, 60, 25);
+    ctx.fillRect(x+182, y+40, 4, 15);
+    ctx.fillStyle = pct < 0.2 ? '#ef4444' : '#22c55e';
+    ctx.fillRect(x+122, y+37, 56*pct, 21);
+    ctx.fillStyle = '#334151';
+    ctx.font = '10px sans-serif';
+    ctx.fillText(maxKwh > 0 ? `${(state.batteryKwh).toFixed(0)}/${maxKwh} kWh` : '无设备', x+120, y+75);
+    return { x: x+110, y: y+100 }; 
+}
+
+function drawChargers() {
+    const startX = 40, startY = 160, gap = 90;
+    const hubPos = { x: 150, y: 120 }; 
+    let cx = startX, cy = startY;
+    
+    const drawPowerLine = (targetX, targetY) => {
+        ctx.beginPath();
+        ctx.moveTo(hubPos.x, hubPos.y);
+        ctx.bezierCurveTo(hubPos.x, hubPos.y + 50, targetX + 35, targetY - 50, targetX + 35, targetY);
+        ctx.lineWidth = 2;
+        const d = state.lastTickData;
+        const total = d.load || 1;
+        if (d.solar/total > 0.5) ctx.strokeStyle = 'rgba(250, 204, 21, 0.6)'; 
+        else if (d.batt/total > 0.5) ctx.strokeStyle = 'rgba(34, 197, 94, 0.6)'; 
+        else ctx.strokeStyle = 'rgba(239, 68, 68, 0.4)'; 
+        ctx.setLineDash([5, 5]);
+        ctx.lineDashOffset = -Date.now() / 20; 
+        ctx.stroke();
+        ctx.setLineDash([]);
+    };
+
+    for (let i = 0; i < state.assets.slowCharger; i++) {
+        const car = state.cars.find(c => c.type === 'slow' && c.slot === i);
+        if (car && !state.paused) drawPowerLine(cx, cy);
+        drawStation(cx, cy, 'slow', i, car);
+        cx += gap;
+        if (cx > 700) { cx = startX; cy += 120; }
+    }
+    for (let i = 0; i < state.assets.fastCharger; i++) {
+        const car = state.cars.find(c => c.type === 'fast' && c.slot === i);
+        if (car && !state.paused) drawPowerLine(cx, cy);
+        drawStation(cx, cy, 'fast', i, car);
+        cx += gap;
+        if (cx > 700) { cx = startX; cy += 120; }
+    }
+}
+
+function drawStation(x, y, type, id, car) {
+    const isSlow = type === 'slow';
+    const color = isSlow ? '#3b82f6' : '#9333ea';
+    const label = isSlow ? '慢充' : '快充';
+    ctx.fillStyle = 'rgba(0,0,0,0.05)';
+    ctx.beginPath(); ctx.ellipse(x+35, y+85, 35, 12, 0, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = '#f1f5f9';
+    ctx.strokeStyle = '#cbd5e1';
+    ctx.lineWidth = 2;
+    ctx.fillRect(x+20, y, 30, 80);
+    ctx.strokeRect(x+20, y, 30, 80);
+    ctx.fillStyle = car ? '#22c55e' : '#94a3b8'; 
+    ctx.beginPath(); ctx.arc(x+35, y+15, 4, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = '#64748b';
+    ctx.font = 'bold 12px "PingFang SC"';
+    ctx.fillText(`${label} #${id+1}`, x+15, y+95);
+    if (car) {
+        ctx.fillStyle = car.color;
+        ctx.beginPath();
+        ctx.roundRect(x, y+25, 70, 50, 8);
+        ctx.fill();
+        ctx.fillStyle = '#bfdbfe';
+        ctx.fillRect(x+5, y+35, 50, 15);
+        const pct = 1 - (car.ticksLeft / (car.kwhTotal / car.kwhPerTick));
+        ctx.fillStyle = '#166534';
+        ctx.fillRect(x+10, y+15, 50, 6);
+        ctx.fillStyle = '#4ade80';
+        ctx.fillRect(x+10, y+15, 50 * Math.max(0, pct), 6);
+    }
+}
+
+if (!ctx.roundRect) {
+    ctx.roundRect = function(x, y, w, h, r) {
+        this.beginPath(); this.moveTo(x+r, y);
+        this.arcTo(x+w, y, x+w, y+h, r); this.arcTo(x+w, y+h, x, y+h, r);
+        this.arcTo(x, y+h, x, y, r); this.arcTo(x, y, x+w, y, r);
+        this.closePath(); return this;
+    }
+}
+
+updateUI();
+draw();
+showModal('欢迎来到充电站', '点击下方按钮开始运营。\n请留意右上角的租金倒计时！', '开始');
+
+</script>
+</body>
+</html>
+
