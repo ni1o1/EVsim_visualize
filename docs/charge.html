@@ -233,7 +233,7 @@
                 <span class="text-[9px] bg-yellow-200 px-2 rounded-full mt-0.5 font-bold" id="count-solar">0</span>
             </button>
             <button onclick="buyAsset('battery')" class="btn bg-green-50 border border-green-200 text-green-800 rounded-lg h-14 flex flex-col items-center justify-center hover:bg-green-100">
-                <span class="font-bold text-xs">储能 (10kWh)</span>
+                <span class="font-bold text-xs">储能 (100kWh)</span>
                 <span class="text-[9px] text-slate-500">$1000 | 日$2.5</span>
                 <span class="text-[9px] bg-green-200 px-2 rounded-full mt-0.5 font-bold" id="count-battery">0</span>
             </button>
@@ -253,7 +253,7 @@
             <p class="text-slate-500 mb-6 text-sm leading-relaxed text-left bg-slate-50 p-4 rounded-lg border border-slate-200">
                 1. 初始负载: <span class="font-bold text-black">50kW</span><br>
                 2. 初始资金: <span class="font-bold text-green-600">$3000</span><br>
-                3. 周租金: $500 起, 每周涨 $100<br>
+                3. 周租金: $500 起, 每周涨 $200<br>
                 4. 充电价格: 锁定车辆进入时的电价
             </p>
             <button onclick="startGame()" class="w-full py-3.5 bg-blue-600 text-white font-bold rounded-xl shadow-lg hover:bg-blue-700 active:scale-95 transition">
@@ -317,12 +317,13 @@
 const CONFIG = {
     initialMoney: 3000, 
     dailyCost: { slowCharger: 5, fastCharger: 10, solar: 2.5, battery: 2.5, transformer: 2.5 },
-    // 调整租金逻辑：初始 500， 每周加 100
+    // 调整租金逻辑：初始 500， 每周加 200 (修改点：原为100)
     baseWeeklyRent: 500, 
-    rentGrowth: 100, 
+    rentGrowth: 200, 
     // 资产价格全部减半
     costs: { slowCharger: 400, fastCharger: 1500, solar: 1000, battery: 1000, transformer: 1250, marketing: 1250 },
-    batteryCap: 10, batteryRate: 10, solarMax: 10, 
+    // 电池容量修改为100 (原为10)
+    batteryCap: 100, batteryRate: 10, solarMax: 10, 
     baseLoadLimit: 50, transformerBoost: 50, chargerPower: { slow: 7, fast: 60 },
     gridPrices: [0.3, 0.3, 0.3, 0.3, 0.3, 0.3, 0.4, 0.8, 1.2, 1.5, 1.5, 1.2, 0.8, 0.8, 1.0, 1.2, 1.8, 1.8, 1.5, 1.0, 0.8, 0.6, 0.5, 0.4],
     trafficCurve: [0.05, 0.05, 0.05, 0.05, 0.1, 0.2, 0.4, 0.8, 0.9, 0.8, 0.7, 0.6, 0.6, 0.6, 0.7, 0.9, 1.0, 1.0, 0.9, 0.7, 0.5, 0.3, 0.2, 0.1],
