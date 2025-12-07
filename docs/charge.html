@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>EV Tycoon Progress (Offline Reset)</title>
+    <title>EV Tycoon Progress (Weather Update)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body { 
@@ -128,7 +128,14 @@
                 <div class="text-[9px] text-gray-400 font-medium" id="ui-last-profit">昨日: --</div>
             </div>
             <div class="stat-card border-t-4 border-blue-500">
-                <div class="text-xl font-mono leading-none text-slate-800 font-bold" id="ui-clock">08:00</div>
+                <div class="flex justify-between w-full px-2 items-center">
+                    <div class="text-xl font-mono leading-none text-slate-800 font-bold" id="ui-clock">08:00</div>
+                    <!-- 天气显示 -->
+                    <div class="flex flex-col items-end">
+                        <span class="text-lg leading-none" id="ui-weather-icon">☀️</span>
+                        <span class="text-[8px] font-bold text-slate-500" id="ui-weather-eff">100%</span>
+                    </div>
+                </div>
                 <div class="flex justify-center items-center gap-1 w-full mt-1">
                     <span class="text-[10px] bg-slate-100 px-1 rounded text-slate-500" id="ui-day">D1</span>
                     <span class="text-[10px] text-slate-400 font-bold" id="ui-speed-label">PAUSED</span>
@@ -253,8 +260,11 @@
             <p class="text-slate-500 mb-6 text-sm leading-relaxed text-left bg-slate-50 p-4 rounded-lg border border-slate-200">
                 1. 初始负载: <span class="font-bold text-black">50kW</span><br>
                 2. 初始资金: <span class="font-bold text-green-600">$3000</span><br>
-                3. 周租金: $500 起, 每周涨 $200<br>
-                4. 充电价格: 锁定车辆进入时的电价
+                3. 周租金: $1000 起, 每周涨 $250<br>
+                4. 天气系统: <br>
+                   &nbsp;&nbsp;☀️ 晴 (100% 发电) <br>
+                   &nbsp;&nbsp;☁️ 阴 (60% 发电) <br>
+                   &nbsp;&nbsp;🌧️ 雨 (10% 发电)
             </p>
             <button onclick="startGame()" class="w-full py-3.5 bg-blue-600 text-white font-bold rounded-xl shadow-lg hover:bg-blue-700 active:scale-95 transition">
                 开始营业
@@ -309,7 +319,6 @@
                 <p class="text-xs text-slate-400 uppercase font-bold">存活天数</p>
                 <p class="text-4xl font-black text-slate-800" id="final-days">0</p>
             </div>
-            <!-- 修改这里：绑定 restartGame 而不是 location.reload -->
             <button onclick="restartGame()" class="w-full py-3 bg-slate-900 text-white font-bold rounded-xl active:scale-95 transition">重新开始</button>
         </div>
     </div>
@@ -318,17 +327,30 @@
 const CONFIG = {
     initialMoney: 3000, 
     dailyCost: { slowCharger: 5, fastCharger: 10, solar: 2.5, battery: 2.5, transformer: 2.5 },
-    baseWeeklyRent: 500, 
-    rentGrowth: 200, 
+    baseWeeklyRent: 1000, 
+    rentGrowth: 250, 
     costs: { slowCharger: 400, fastCharger: 1500, solar: 1000, battery: 1000, transformer: 1250, marketing: 1250 },
     batteryCap: 100, batteryRate: 10, solarMax: 10, 
     baseLoadLimit: 50, transformerBoost: 50, chargerPower: { slow: 7, fast: 60 },
     gridPrices: [0.3, 0.3, 0.3, 0.3, 0.3, 0.3, 0.4, 0.8, 1.2, 1.5, 1.5, 1.2, 0.8, 0.8, 1.0, 1.2, 1.8, 1.8, 1.5, 1.0, 0.8, 0.6, 0.5, 0.4],
     trafficCurve: [0.05, 0.05, 0.05, 0.05, 0.1, 0.2, 0.4, 0.8, 0.9, 0.8, 0.7, 0.6, 0.6, 0.6, 0.7, 0.9, 1.0, 1.0, 0.9, 0.7, 0.5, 0.3, 0.2, 0.1],
     baseDailyPool: 20, 
+    // 天气配置
+    weather: {
+        types: ['sunny', 'cloudy', 'rainy'],
+        probs: [0.5, 0.3, 0.2], // 50%, 30%, 20%
+        eff: { sunny: 1.0, cloudy: 0.6, rainy: 0.1 },
+        icons: { sunny: '☀️', cloudy: '☁️', rainy: '🌧️' }
+    }
 };
 
-// 1. 封装初始状态函数，便于重置
+function rollWeather() {
+    const r = Math.random();
+    if (r < 0.5) return 'sunny';
+    if (r < 0.8) return 'cloudy';
+    return 'rainy';
+}
+
 function getInitialState() {
     return {
         money: CONFIG.initialMoney, day: 1, hour: 8, minute: 0, 
@@ -342,7 +364,8 @@ function getInitialState() {
         nextEventTime: null,
         timer: null,
         currentDayProfit: 0, lastDayProfit: null,
-        pendingRent: 0
+        pendingRent: 0,
+        weather: rollWeather() // 初始天气
     };
 }
 
@@ -392,34 +415,22 @@ function startGame() {
     }
 }
 
-// 2. 新增重开函数 (离线重置)
 function restartGame() {
-    // 清除当前的计时器
     if (state.timer) clearTimeout(state.timer);
-    
-    // 重置状态数据
     state = getInitialState();
-    
-    // 清除页面上的浮动文字
     document.getElementById('fx-container').innerHTML = '';
-    
-    // 重置UI控制控件
     document.getElementById('price-slider').value = 1.5;
     updatePrice(1.5);
     
-    // 隐藏所有弹窗，只显示开始弹窗
     document.getElementById('game-over-modal').classList.add('hidden');
     document.getElementById('bill-modal').classList.add('hidden');
     document.getElementById('event-modal').classList.add('hidden');
     document.getElementById('start-modal').classList.remove('hidden');
     
-    // 更新界面和画布
     updateUI();
     resizeCanvas();
-    
-    // 重置速度按钮样式
-    setSpeed(500); // 视觉上重置为1x，但状态依然是paused直到startGame点击
-    state.paused = true; // 确保是暂停状态
+    setSpeed(500); 
+    state.paused = true; 
 }
 
 function scheduleNextEvent() {
@@ -522,6 +533,9 @@ function triggerRandomEvent() {
 
 function dailySettle() {
     state.day++;
+    // 天气变更
+    state.weather = rollWeather();
+    
     const dailyCost = calcDailyCost();
     state.money -= dailyCost;
     spawnFloatText(`日维护 -$${dailyCost}`, '#f97316');
@@ -564,7 +578,12 @@ function payBill() {
 
 function trySpawnCar(baseProb) {
     if (state.dailyPoolLeft <= 0) return;
-    if (Math.random() > baseProb) return;
+    
+    // 雨天稍微降低一点点客流欲望(可选，目前暂不影响)
+    let weatherMod = 1.0;
+    if (state.weather === 'rainy') weatherMod = 0.9;
+    
+    if (Math.random() > baseProb * weatherMod) return;
 
     const myPrice = state.price;
     let acceptChance = 1.0;
@@ -649,8 +668,13 @@ function processEnergy(gridPrice) {
         car.kwhReceived += added;
     });
 
+    // 计算光伏
     let sunH = (state.hour >= 6 && state.hour <= 18) ? Math.sin((state.hour-6)/12*Math.PI) : 0;
-    const solarKwh = state.assets.solar * CONFIG.solarMax * sunH * (0.5+Math.random()*0.5) / 6; 
+    
+    // 应用天气效率
+    const weatherEfficiency = CONFIG.weather.eff[state.weather];
+    
+    const solarKwh = state.assets.solar * CONFIG.solarMax * sunH * weatherEfficiency * (0.8+Math.random()*0.4) / 6; 
 
     let remainDemandKwh = actualTotalKwhPerTick;
     let usedSolarKwh = Math.min(remainDemandKwh, solarKwh);
@@ -711,27 +735,86 @@ function draw() {
     if (!canvasWidth) return; 
     ctx.clearRect(0, 0, canvasWidth, canvasHeight);
     const h = state.hour;
-    let skyColor = '#f8fafc'; 
-    if (h < 6 || h > 19) skyColor = '#e2e8f0'; 
-    else if (h > 17) skyColor = '#fff7ed'; 
     
-    if (CONFIG.gridPrices[h] >= 1.5) {
+    // 天空颜色逻辑
+    let skyColor = '#f8fafc';
+    
+    if (state.weather === 'rainy') {
+        if (h < 6 || h > 19) skyColor = '#334155'; // 雨天夜晚深蓝灰
+        else skyColor = '#94a3b8'; // 雨天白天灰色
+    } else if (state.weather === 'cloudy') {
+        if (h < 6 || h > 19) skyColor = '#475569';
+        else skyColor = '#cbd5e1'; // 阴天白天浅灰
+    } else {
+        // 晴天
+        if (h < 6 || h > 19) skyColor = '#e2e8f0'; 
+        else if (h > 17) skyColor = '#fff7ed'; // 黄昏
+        else if (CONFIG.gridPrices[h] >= 1.5) skyColor = '#fff'; // 高峰电价稍微亮白一点
+        else skyColor = '#f0f9ff'; // 正常晴天淡蓝
+    }
+    
+    // 如果是晴天且是黄昏，绘制渐变
+    if (state.weather === 'sunny' && h > 17 && h <= 19) {
         const grd = ctx.createLinearGradient(0, 0, 0, canvasHeight);
-        grd.addColorStop(0, '#fef2f2');
-        grd.addColorStop(1, '#fff');
+        grd.addColorStop(0, '#fdba74');
+        grd.addColorStop(1, '#fff7ed');
         ctx.fillStyle = grd;
     } else {
         ctx.fillStyle = skyColor;
     }
+    
     ctx.fillRect(0, 0, canvasWidth, canvasHeight);
 
+    // 太阳 / 月亮 / 乌云
     ctx.beginPath();
-    ctx.arc(canvasWidth - 50, 50, 30, 0, Math.PI * 2);
-    ctx.fillStyle = (h>=6 && h<=18) ? '#fcd34d' : '#cbd5e1'; 
-    ctx.fill();
+    let celestialX = canvasWidth - 50;
+    let celestialY = 50;
+    
+    if (state.weather === 'rainy') {
+        // 雨天不画太阳，画一片乌云
+        ctx.fillStyle = '#64748b';
+        ctx.beginPath();
+        ctx.ellipse(celestialX, celestialY, 40, 20, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.ellipse(celestialX-20, celestialY+10, 30, 20, 0, 0, Math.PI * 2);
+        ctx.fill();
+    } else if (state.weather === 'cloudy') {
+        // 阴天画浅云
+        ctx.fillStyle = '#94a3b8';
+        ctx.beginPath();
+        ctx.ellipse(celestialX, celestialY, 40, 25, 0, 0, Math.PI * 2);
+        ctx.fill();
+    } else {
+        // 晴天
+        ctx.arc(celestialX, celestialY, 30, 0, Math.PI * 2);
+        ctx.fillStyle = (h>=6 && h<=18) ? '#fcd34d' : '#cbd5e1'; 
+        ctx.fill();
+    }
 
     drawHub(20, 50); 
     drawChargers();
+
+    // 如果下雨，绘制雨滴特效
+    if (state.weather === 'rainy') {
+        drawRain();
+    }
+}
+
+// 简单的下雨动画
+function drawRain() {
+    ctx.strokeStyle = 'rgba(148, 163, 184, 0.6)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    const rainCount = 80;
+    for(let i=0; i<rainCount; i++) {
+        const x = Math.random() * canvasWidth;
+        const y = Math.random() * canvasHeight;
+        const len = 10 + Math.random() * 15;
+        ctx.moveTo(x, y);
+        ctx.lineTo(x - 5, y + len); // 稍微斜着下
+    }
+    ctx.stroke();
 }
 
 function drawHub(x, y) {
@@ -742,10 +825,15 @@ function drawHub(x, y) {
     ctx.fillText('能源中心', x + 10, y + 15);
 
     const eff = (state.hour >= 6 && state.hour <= 18) ? Math.sin((state.hour-6)/12*Math.PI) : 0;
+    const weatherEff = CONFIG.weather.eff[state.weather];
+    
     ctx.fillStyle = '#eab308'; 
-    ctx.fillText(`光伏 ${state.assets.solar}`, x+10, y+35);
+    ctx.fillText(`光伏 ${state.assets.solar} (${(weatherEff*100).toFixed(0)}%)`, x+10, y+35);
     ctx.fillStyle = '#fef08a'; ctx.fillRect(x+10, y+40, 60, 5);
-    ctx.fillStyle = '#eab308'; ctx.fillRect(x+10, y+40, 60*eff, 5);
+    
+    // 进度条显示实际效率
+    ctx.fillStyle = state.weather === 'rainy' ? '#94a3b8' : '#eab308'; 
+    ctx.fillRect(x+10, y+40, 60 * eff * weatherEff, 5);
 
     const max = state.assets.battery * CONFIG.batteryCap;
     const pct = max > 0 ? state.batteryKwh/max : 0;
@@ -839,6 +927,13 @@ function updateUI() {
     document.getElementById('ui-clock').innerText = `${h}:${m}`;
     document.getElementById('ui-day').innerText = `D${state.day}`;
     document.getElementById('ui-pool').innerText = `${state.dailyPoolLeft}/${state.dailyPoolMax}`;
+
+    // 更新天气 UI
+    const w = state.weather;
+    document.getElementById('ui-weather-icon').innerText = CONFIG.weather.icons[w];
+    const eff = CONFIG.weather.eff[w] * 100;
+    document.getElementById('ui-weather-eff').innerText = `PV:${eff}%`;
+    document.getElementById('ui-weather-eff').className = w === 'rainy' ? 'text-[8px] font-bold text-red-500' : 'text-[8px] font-bold text-slate-500';
 
     const gp = CONFIG.gridPrices[state.hour];
     const gpEl = document.getElementById('ui-grid-price');
