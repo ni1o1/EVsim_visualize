@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>EV Tycoon Progress</title>
+    <title>EV Tycoon Progress (Offline Reset)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body { 
@@ -210,7 +210,7 @@
             </div>
         </div>
 
-        <!-- 第二行：资产购买区 - 价格已减半 -->
+        <!-- 第二行：资产购买区 -->
         <div class="grid grid-cols-3 gap-2">
             <button onclick="buyAsset('slowCharger')" class="btn bg-blue-50 border-blue-200 text-blue-800 rounded-lg h-14 flex flex-col items-center justify-center hover:bg-blue-100">
                 <span class="font-bold text-xs">慢充 (7kW)</span>
@@ -309,7 +309,8 @@
                 <p class="text-xs text-slate-400 uppercase font-bold">存活天数</p>
                 <p class="text-4xl font-black text-slate-800" id="final-days">0</p>
             </div>
-            <button onclick="location.reload()" class="w-full py-3 bg-slate-900 text-white font-bold rounded-xl">重新开始</button>
+            <!-- 修改这里：绑定 restartGame 而不是 location.reload -->
+            <button onclick="restartGame()" class="w-full py-3 bg-slate-900 text-white font-bold rounded-xl active:scale-95 transition">重新开始</button>
         </div>
     </div>
 
@@ -317,12 +318,9 @@
 const CONFIG = {
     initialMoney: 3000, 
     dailyCost: { slowCharger: 5, fastCharger: 10, solar: 2.5, battery: 2.5, transformer: 2.5 },
-    // 调整租金逻辑：初始 500， 每周加 200 (修改点：原为100)
     baseWeeklyRent: 500, 
     rentGrowth: 200, 
-    // 资产价格全部减半
     costs: { slowCharger: 400, fastCharger: 1500, solar: 1000, battery: 1000, transformer: 1250, marketing: 1250 },
-    // 电池容量修改为100 (原为10)
     batteryCap: 100, batteryRate: 10, solarMax: 10, 
     baseLoadLimit: 50, transformerBoost: 50, chargerPower: { slow: 7, fast: 60 },
     gridPrices: [0.3, 0.3, 0.3, 0.3, 0.3, 0.3, 0.4, 0.8, 1.2, 1.5, 1.5, 1.2, 0.8, 0.8, 1.0, 1.2, 1.8, 1.8, 1.5, 1.0, 0.8, 0.6, 0.5, 0.4],
@@ -330,20 +328,25 @@ const CONFIG = {
     baseDailyPool: 20, 
 };
 
-let state = {
-    money: CONFIG.initialMoney, day: 1, hour: 8, minute: 0, 
-    paused: true, gameSpeed: 500, lastGameSpeed: 500,
-    assets: { slowCharger: 1, fastCharger: 0, solar: 0, battery: 0, transformer: 0 }, 
-    batteryKwh: 0, price: 1.5, 
-    dailyPoolMax: CONFIG.baseDailyPool, dailyPoolLeft: CONFIG.baseDailyPool,
-    cars: [], 
-    lastTickData: { load: 0, solar: 0, batt: 0, grid: 0, limit: CONFIG.baseLoadLimit },
-    weeksSurvived: 0,
-    nextEventTime: null,
-    timer: null,
-    currentDayProfit: 0, lastDayProfit: null,
-    pendingRent: 0
-};
+// 1. 封装初始状态函数，便于重置
+function getInitialState() {
+    return {
+        money: CONFIG.initialMoney, day: 1, hour: 8, minute: 0, 
+        paused: true, gameSpeed: 500, lastGameSpeed: 500,
+        assets: { slowCharger: 1, fastCharger: 0, solar: 0, battery: 0, transformer: 0 }, 
+        batteryKwh: 0, price: 1.5, 
+        dailyPoolMax: CONFIG.baseDailyPool, dailyPoolLeft: CONFIG.baseDailyPool,
+        cars: [], 
+        lastTickData: { load: 0, solar: 0, batt: 0, grid: 0, limit: CONFIG.baseLoadLimit },
+        weeksSurvived: 0,
+        nextEventTime: null,
+        timer: null,
+        currentDayProfit: 0, lastDayProfit: null,
+        pendingRent: 0
+    };
+}
+
+let state = getInitialState();
 
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
@@ -357,7 +360,6 @@ function resizeCanvas() {
     const cols = 5; 
     const rows = Math.ceil(totalChargers / cols);
     
-    // 动态调整高度
     const minHeight = 400;
     const requiredHeight = 110 + (rows * 85); 
     const displayHeight = Math.max(minHeight, requiredHeight);
@@ -388,6 +390,36 @@ function startGame() {
         state.paused = false;
         tick();
     }
+}
+
+// 2. 新增重开函数 (离线重置)
+function restartGame() {
+    // 清除当前的计时器
+    if (state.timer) clearTimeout(state.timer);
+    
+    // 重置状态数据
+    state = getInitialState();
+    
+    // 清除页面上的浮动文字
+    document.getElementById('fx-container').innerHTML = '';
+    
+    // 重置UI控制控件
+    document.getElementById('price-slider').value = 1.5;
+    updatePrice(1.5);
+    
+    // 隐藏所有弹窗，只显示开始弹窗
+    document.getElementById('game-over-modal').classList.add('hidden');
+    document.getElementById('bill-modal').classList.add('hidden');
+    document.getElementById('event-modal').classList.add('hidden');
+    document.getElementById('start-modal').classList.remove('hidden');
+    
+    // 更新界面和画布
+    updateUI();
+    resizeCanvas();
+    
+    // 重置速度按钮样式
+    setSpeed(500); // 视觉上重置为1x，但状态依然是paused直到startGame点击
+    state.paused = true; // 确保是暂停状态
 }
 
 function scheduleNextEvent() {
@@ -537,7 +569,6 @@ function trySpawnCar(baseProb) {
     const myPrice = state.price;
     let acceptChance = 1.0;
 
-    // > $2.0 概率稍高一点 (原0.05, 现0.2)
     if (myPrice > 2.0) {
         const excess = myPrice - 2.0;
         acceptChance = 0.2 / (excess * 2 + 1); 
@@ -579,7 +610,6 @@ function trySpawnCar(baseProb) {
             ticksLeft: patience, 
             kwhNeeded: kwhNeed, kwhReceived: 0,
             color: spawnType === 'slow' ? '#2563eb' : '#9333ea',
-            // 锁定电价
             priceLocked: state.price
         });
     }
@@ -620,7 +650,7 @@ function processEnergy(gridPrice) {
     });
 
     let sunH = (state.hour >= 6 && state.hour <= 18) ? Math.sin((state.hour-6)/12*Math.PI) : 0;
-    const solarKwh = state.assets.solar * CONFIG.solarMax * sunH * (0.5+Math.random()*0.5) / 6; // per tick
+    const solarKwh = state.assets.solar * CONFIG.solarMax * sunH * (0.5+Math.random()*0.5) / 6; 
 
     let remainDemandKwh = actualTotalKwhPerTick;
     let usedSolarKwh = Math.min(remainDemandKwh, solarKwh);
@@ -650,7 +680,6 @@ function processEnergy(gridPrice) {
 
     let usedGridKwh = remainDemandKwh + gridChargeKwh;
 
-    // 收入计算使用车辆锁定电价
     let revenue = 0;
     state.cars.forEach(car => {
         const pKw = CONFIG.chargerPower[car.type];
@@ -733,7 +762,7 @@ function drawHub(x, y) {
 function drawChargers() {
     const startX = 20;
     const startY = 140; 
-    const gapX = 50;    // 保持紧凑
+    const gapX = 50; 
     const gapY = 80;
     const cols = Math.floor((canvasWidth - 40) / gapX); 
 
@@ -759,12 +788,9 @@ function drawChargers() {
             ctx.beginPath(); ctx.roundRect(x-5, y+20, 40, 25, 4); ctx.fill();
             ctx.fillStyle = '#bfdbfe'; ctx.fillRect(x+5, y+24, 30, 8);
             
-            // 充电进度条 (绿色) - 完整保留
             const pct = Math.min(1, car.kwhReceived / car.kwhNeeded);
-            // 进度条背景
             ctx.fillStyle = '#374151'; 
             ctx.fillRect(x-5, y+15, 40, 3);
-            // 进度
             ctx.fillStyle = '#4ade80';
             ctx.fillRect(x-5, y+15, 40 * pct, 3);
 
@@ -804,6 +830,8 @@ function updateUI() {
         const sign = state.lastDayProfit >= 0 ? '+' : '';
         const color = state.lastDayProfit >= 0 ? 'text-green-600' : 'text-red-500';
         lastProfitEl.innerHTML = `昨日: <span class="${color}">${sign}$${val}</span>`;
+    } else {
+        lastProfitEl.innerText = "昨日: --";
     }
 
     const h = state.hour.toString().padStart(2,'0');
@@ -919,22 +947,6 @@ function setSpeed(ms) {
     updateUI();
 }
 
-function togglePause() {
-    if (state.paused) {
-        state.paused = false;
-        const btn = document.getElementById('pause-btn');
-        btn.innerText = "⏸ 暂停";
-        btn.classList.replace('bg-blue-600', 'bg-slate-800');
-        tick();
-    } else {
-        state.paused = true;
-        const btn = document.getElementById('pause-btn');
-        btn.innerText = "▶ 继续";
-        btn.classList.replace('bg-slate-800', 'bg-blue-600');
-        clearTimeout(state.timer);
-    }
-}
-
 function updatePrice(v) {
     state.price = parseFloat(v);
     document.getElementById('price-display').innerText = `$${state.price.toFixed(2)}`;
@@ -942,21 +954,6 @@ function updatePrice(v) {
 
 function closeEventModal() {
     document.getElementById('event-modal').classList.add('hidden');
-    checkBankruptcy();
-    if (state.money >= 0) setSpeed(state.lastGameSpeed); 
-}
-
-function closeRentModal() {
-    document.getElementById('bill-modal').classList.add('hidden');
-    checkBankruptcy();
-    if (state.money >= 0) setSpeed(state.lastGameSpeed);
-}
-
-function payBill() {
-    state.money -= state.pendingRent;
-    state.pendingRent = 0;
-    state.weeksSurvived++; 
-    document.getElementById('bill-modal').classList.add('hidden');
     checkBankruptcy();
     if (state.money >= 0) setSpeed(state.lastGameSpeed); 
 }
