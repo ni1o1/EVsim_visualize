@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>EV Tycoon (Dynamic Pricing)</title>
+    <title>EV Tycoon (Hard Mode)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body { 
@@ -217,15 +217,17 @@
             </div>
         </div>
 
-        <!-- 第二行：资产购买区 - 已修改：增加动态价格ID -->
+        <!-- 第二行：资产购买区 -->
         <div class="grid grid-cols-3 gap-2">
             <button onclick="buyAsset('slowCharger')" class="btn bg-blue-50 border-blue-200 text-blue-800 rounded-lg h-14 flex flex-col items-center justify-center hover:bg-blue-100">
                 <span class="font-bold text-xs">慢充 (7kW)</span>
-                <span class="text-[9px] text-slate-500"><span id="cost-slow">$400</span> | 日$5</span>
+                <!-- 修改：慢充价格显示 -->
+                <span class="text-[9px] text-slate-500"><span id="cost-slow">$800</span> | 日$5</span>
                 <span class="text-[9px] bg-blue-200 px-2 rounded-full mt-0.5 font-bold" id="count-slow">1</span>
             </button>
             <button onclick="buyAsset('fastCharger')" class="btn bg-purple-50 border-purple-200 text-purple-800 rounded-lg h-14 flex flex-col items-center justify-center hover:bg-purple-100">
-                <span class="font-bold text-xs">快充 (60kW)</span>
+                <!-- 修改：快充功率显示 -->
+                <span class="font-bold text-xs">快充 (30kW)</span>
                 <span class="text-[9px] text-slate-500"><span id="cost-fast">$1500</span> | 日$10</span>
                 <span class="text-[9px] bg-purple-200 px-2 rounded-full mt-0.5 font-bold" id="count-fast">0</span>
             </button>
@@ -256,12 +258,13 @@
     <div id="start-modal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
         <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-8 text-center">
             <div class="text-6xl mb-4">⚡</div>
-            <h1 class="text-2xl font-black text-slate-800 mb-2">通胀模式</h1>
+            <h1 class="text-2xl font-black text-slate-800 mb-2">通胀模式 (Hard)</h1>
             <p class="text-slate-500 mb-6 text-sm leading-relaxed text-left bg-slate-50 p-4 rounded-lg border border-slate-200">
                 1. 初始资金: <span class="font-bold text-green-600">$3000</span><br>
                 2. 初始设备: 1个慢充桩<br>
-                3. <span class="text-red-500 font-bold">通货膨胀:</span> 每购买一次资源，该资源价格永久上涨 <span class="font-bold text-black">20%</span>。<br>
-                4. 请谨慎规划资金流！
+                3. <span class="text-red-500 font-bold">通货膨胀:</span> 每购买一次资源，价格永久上涨 <span class="font-bold text-black">20%</span>。<br>
+                4. <span class="text-blue-500 font-bold">调整:</span> 客流减半，快充削弱(30kW)，慢充涨价。<br>
+                5. 请谨慎规划资金流！
             </p>
             <button onclick="startGame()" class="w-full py-3.5 bg-blue-600 text-white font-bold rounded-xl shadow-lg hover:bg-blue-700 active:scale-95 transition">
                 开始营业
@@ -326,12 +329,15 @@ const CONFIG = {
     dailyCost: { slowCharger: 5, fastCharger: 10, solar: 2.5, battery: 2.5, transformer: 2.5 },
     baseWeeklyRent: 1000, 
     rentGrowth: 250, 
-    // 初始价格
-    costs: { slowCharger: 400, fastCharger: 1500, solar: 1000, battery: 1000, transformer: 1250, marketing: 1250 },
+    // 修改：慢充初始价格 400 -> 800
+    costs: { slowCharger: 800, fastCharger: 1500, solar: 1000, battery: 1000, transformer: 1250, marketing: 1250 },
     batteryCap: 100, batteryRate: 10, solarMax: 10, 
-    baseLoadLimit: 50, transformerBoost: 50, chargerPower: { slow: 7, fast: 60 },
+    baseLoadLimit: 50, transformerBoost: 50, 
+    // 修改：快充功率 60 -> 30
+    chargerPower: { slow: 7, fast: 30 },
     gridPrices: [0.3, 0.3, 0.3, 0.3, 0.3, 0.3, 0.4, 0.8, 1.2, 1.5, 1.5, 1.2, 0.8, 0.8, 1.0, 1.2, 1.8, 1.8, 1.5, 1.0, 0.8, 0.6, 0.5, 0.4],
-    trafficCurve: [0.05, 0.05, 0.05, 0.05, 0.1, 0.2, 0.4, 0.8, 0.9, 0.8, 0.7, 0.6, 0.6, 0.6, 0.7, 0.9, 1.0, 1.0, 0.9, 0.7, 0.5, 0.3, 0.2, 0.1],
+    // 修改：客流概率减半 (除以2)
+    trafficCurve: [0.025, 0.025, 0.025, 0.025, 0.05, 0.1, 0.2, 0.4, 0.45, 0.4, 0.35, 0.3, 0.3, 0.3, 0.35, 0.45, 0.5, 0.5, 0.45, 0.35, 0.25, 0.15, 0.1, 0.05],
     baseDailyPool: 20, 
     // 天气配置
     weather: {
@@ -354,7 +360,6 @@ function getInitialState() {
         money: CONFIG.initialMoney, day: 1, hour: 8, minute: 0, 
         paused: true, gameSpeed: 500, lastGameSpeed: 500,
         assets: { slowCharger: 1, fastCharger: 0, solar: 0, battery: 0, transformer: 0 }, 
-        // 关键改动：状态中保存当前成本，从CONFIG复制一份
         currentCosts: { ...CONFIG.costs },
         batteryKwh: 0, price: 1.5, 
         dailyPoolMax: CONFIG.baseDailyPool, dailyPoolLeft: CONFIG.baseDailyPool,
@@ -365,7 +370,7 @@ function getInitialState() {
         timer: null,
         currentDayProfit: 0, lastDayProfit: null,
         pendingRent: 0,
-        weather: rollWeather() // 初始天气
+        weather: rollWeather() 
     };
 }
 
