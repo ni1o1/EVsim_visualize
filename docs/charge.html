@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>EV Tycoon Big Icons</title>
+    <title>EV Tycoon Progress</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body { 
@@ -31,8 +31,7 @@
 
         #canvas-wrapper {
             width: 100%;
-            /* 初始高度，会被JS动态调整 */
-            min-height: 300px;
+            min-height: 400px; 
             background: #fff;
             border-radius: 12px;
             box-shadow: 0 4px 15px -3px rgba(0, 0, 0, 0.1);
@@ -81,7 +80,7 @@
         .float-text {
             position: absolute;
             font-weight: 800;
-            font-size: 16px; /* 字体加大 */
+            font-size: 14px;
             pointer-events: none;
             animation: floatUp 1.2s ease-out forwards;
             z-index: 50;
@@ -94,8 +93,8 @@
         }
 
         .power-bar-container {
-            width: 100%; height: 8px; background-color: #e2e8f0; 
-            border-radius: 4px; overflow: hidden; display: flex; position: relative;
+            width: 100%; height: 6px; background-color: #e2e8f0; 
+            border-radius: 3px; overflow: hidden; display: flex; position: relative;
         }
         .scale-line {
             position: absolute; top: 0; bottom: 0; width: 1px;
@@ -110,15 +109,12 @@
 
         input[type=range] { -webkit-appearance: none; width: 100%; background: transparent; }
         input[type=range]::-webkit-slider-thumb {
-            -webkit-appearance: none; height: 24px; width: 24px; border-radius: 50%;
-            background: #2563eb; margin-top: -10px; box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+            -webkit-appearance: none; height: 20px; width: 20px; border-radius: 50%;
+            background: #2563eb; margin-top: -8px; box-shadow: 0 2px 4px rgba(0,0,0,0.2);
         }
         input[type=range]::-webkit-slider-runnable-track {
             width: 100%; height: 4px; cursor: pointer; background: #cbd5e1; border-radius: 2px;
         }
-        
-        .bill-row { display: flex; justify-content: space-between; padding: 4px 0; font-size: 13px; color: #475569; }
-        .bill-row.total { border-top: 1px dashed #cbd5e1; margin-top: 8px; padding-top: 8px; font-weight: bold; font-size: 15px; color: #0f172a; }
     </style>
 </head>
 <body>
@@ -128,7 +124,7 @@
         <div class="grid grid-cols-3 gap-2 shrink-0">
             <div class="stat-card border-t-4 border-green-500">
                 <div class="text-[10px] text-gray-400 font-bold uppercase">资金</div>
-                <div class="text-base font-mono text-green-700 font-bold leading-none mb-0.5" id="ui-money">$5000.00</div>
+                <div class="text-base font-mono text-green-700 font-bold leading-none mb-0.5" id="ui-money">$3000.00</div>
                 <div class="text-[9px] text-gray-400 font-medium" id="ui-last-profit">昨日: --</div>
             </div>
             <div class="stat-card border-t-4 border-blue-500">
@@ -148,24 +144,21 @@
         <div class="grid grid-cols-2 gap-2 shrink-0">
             <div class="stat-card border-l-4 border-orange-400 bg-orange-50/30 items-start px-3 py-1 flex-row justify-between">
                 <span class="text-[10px] text-orange-400 font-bold">日运营费</span>
-                <span class="text-sm font-bold text-orange-600 font-mono" id="ui-daily-cost">-$15.00</span>
+                <span class="text-sm font-bold text-orange-600 font-mono" id="ui-daily-cost">-$7.50</span>
             </div>
             <div class="stat-card border-l-4 border-red-500 bg-red-50/30 items-start px-3 py-1 flex-row justify-between">
                 <div class="flex flex-col items-start">
                     <span class="text-[10px] text-red-400 font-bold">周租金预估</span>
                     <span class="text-[9px] bg-red-100 text-red-500 px-1.5 rounded-full mt-0.5" id="ui-rent-countdown">6天</span>
                 </div>
-                <span class="text-sm font-bold text-red-600 font-mono" id="ui-weekly-rent">-$2000</span>
+                <span class="text-sm font-bold text-red-600 font-mono" id="ui-weekly-rent">-$1000</span>
             </div>
         </div>
 
         <!-- 游戏画布 -->
         <div id="canvas-wrapper">
-            <canvas id="gameCanvas"></canvas>
-            <div id="fx-container" class="absolute top-0 left-0 w-full h-full pointer-events-none overflow-hidden"></div>
-            
             <!-- 实时功率负载条 -->
-            <div id="power-monitor" class="absolute bottom-2 left-2 right-2 bg-white/95 backdrop-blur rounded p-2 border border-slate-200 shadow-sm pointer-events-none transition-colors duration-300 z-10">
+            <div id="power-monitor" class="absolute top-2 left-2 right-2 bg-white/95 backdrop-blur rounded p-2 border border-slate-200 shadow-sm pointer-events-none transition-colors duration-300 z-10">
                 <div class="flex justify-between text-[10px] mb-1 font-bold text-slate-600 items-center">
                     <span id="ui-load-label">实时功率 (上限 50kW)</span>
                     <span id="ui-load-text" class="font-mono text-xs">0.0 / 50 kW</span>
@@ -180,13 +173,16 @@
                     ⚠️ 电网过载！充电速度下降
                 </div>
             </div>
+
+            <canvas id="gameCanvas"></canvas>
+            <div id="fx-container" class="absolute top-0 left-0 w-full h-full pointer-events-none overflow-hidden"></div>
         </div>
     </div>
 
     <!-- 底部控制面板 -->
     <div class="control-panel flex flex-col gap-3">
         
-        <!-- 定价 + 速度 -->
+        <!-- 第一行：定价 + 速度 -->
         <div class="flex gap-2">
             <!-- 速度控制 -->
             <div class="flex flex-col justify-between w-1/3">
@@ -194,8 +190,8 @@
                 <div class="flex bg-slate-100 p-1 rounded-lg gap-0.5">
                      <button onclick="setSpeed(0)" class="speed-btn flex-1 py-1 rounded text-[10px] font-bold text-slate-500" id="speed-0">⏸</button>
                      <button onclick="setSpeed(500)" class="speed-btn flex-1 py-1 rounded text-[10px] font-bold bg-white text-blue-600 shadow-sm" id="speed-1">1x</button>
-                     <button onclick="setSpeed(250)" class="speed-btn flex-1 py-1 rounded text-[10px] font-bold text-slate-500" id="speed-2">2x</button>
                      <button onclick="setSpeed(125)" class="speed-btn flex-1 py-1 rounded text-[10px] font-bold text-slate-500" id="speed-4">4x</button>
+                     <button onclick="setSpeed(62.5)" class="speed-btn flex-1 py-1 rounded text-[10px] font-bold text-slate-500" id="speed-8">8x</button>
                 </div>
             </div>
 
@@ -205,68 +201,83 @@
                     <label class="text-[10px] font-bold text-slate-500">销售电价</label>
                     <span id="price-display" class="font-mono font-bold text-blue-600 text-lg leading-none">$1.50</span>
                 </div>
-                <input type="range" id="price-slider" min="0.5" max="3.5" step="0.1" value="1.5" oninput="updatePrice(this.value)">
+                <input type="range" id="price-slider" min="0.5" max="3.0" step="0.1" value="1.5" oninput="updatePrice(this.value)">
                 <div class="flex justify-between text-[8px] text-slate-400 mt-0.5 font-medium">
                     <span>$0.5</span>
-                    <span class="text-red-500 font-bold">$2.0 红线</span>
-                    <span>$3.5</span>
+                    <span>$1.5</span>
+                    <span>$3.0</span>
                 </div>
             </div>
         </div>
 
-        <!-- 资产购买区 -->
+        <!-- 第二行：资产购买区 -->
         <div class="grid grid-cols-3 gap-2">
             <button onclick="buyAsset('slowCharger')" class="btn bg-blue-50 border-blue-200 text-blue-800 rounded-lg h-14 flex flex-col items-center justify-center hover:bg-blue-100">
                 <span class="font-bold text-xs">慢充 (7kW)</span>
-                <span class="text-[9px] text-slate-500">$1.5k | 日$10</span>
+                <span class="text-[9px] text-slate-500">$800 | 日$5</span>
                 <span class="text-[9px] bg-blue-200 px-2 rounded-full mt-0.5 font-bold" id="count-slow">1</span>
             </button>
             <button onclick="buyAsset('fastCharger')" class="btn bg-purple-50 border-purple-200 text-purple-800 rounded-lg h-14 flex flex-col items-center justify-center hover:bg-purple-100">
                 <span class="font-bold text-xs">快充 (60kW)</span>
-                <span class="text-[9px] text-slate-500">$7.5k | 日$20</span>
+                <span class="text-[9px] text-slate-500">$3000 | 日$10</span>
                 <span class="text-[9px] bg-purple-200 px-2 rounded-full mt-0.5 font-bold" id="count-fast">0</span>
             </button>
             <button onclick="buyAsset('transformer')" class="btn bg-gray-100 border border-gray-300 text-slate-700 rounded-lg h-14 flex flex-col items-center justify-center border-dashed border-2 border-slate-400 hover:bg-gray-200">
                 <span class="font-bold text-xs">配电 (+50kW)</span>
-                <span class="text-[9px] text-slate-500">$5k | 日$5</span>
+                <span class="text-[9px] text-slate-500">$2500 | 日$2.5</span>
                 <span class="text-[9px] bg-gray-300 px-2 rounded-full mt-0.5 font-bold" id="count-transformer">0</span>
             </button>
             <button onclick="buyAsset('solar')" class="btn bg-yellow-50 border border-yellow-200 text-yellow-800 rounded-lg h-14 flex flex-col items-center justify-center hover:bg-yellow-100">
-                <span class="font-bold text-xs">光伏板</span>
-                <span class="text-[9px] text-slate-500">$4k | 日$5</span>
+                <span class="font-bold text-xs">光伏 (10kW)</span>
+                <span class="text-[9px] text-slate-500">$2000 | 日$2.5</span>
                 <span class="text-[9px] bg-yellow-200 px-2 rounded-full mt-0.5 font-bold" id="count-solar">0</span>
             </button>
             <button onclick="buyAsset('battery')" class="btn bg-green-50 border border-green-200 text-green-800 rounded-lg h-14 flex flex-col items-center justify-center hover:bg-green-100">
-                <span class="font-bold text-xs">储能柜</span>
-                <span class="text-[9px] text-slate-500">$6k | 日$5</span>
+                <span class="font-bold text-xs">储能 (10kWh)</span>
+                <span class="text-[9px] text-slate-500">$2000 | 日$2.5</span>
                 <span class="text-[9px] bg-green-200 px-2 rounded-full mt-0.5 font-bold" id="count-battery">0</span>
             </button>
             <button onclick="buyAsset('marketing')" class="btn bg-pink-50 border border-pink-200 text-pink-800 rounded-lg h-14 flex flex-col items-center justify-center border-dashed border-2 hover:bg-pink-100">
                 <span class="font-bold text-xs">推广</span>
-                <span class="text-[9px] text-slate-500">$5k</span>
-                <span class="text-[10px] text-pink-500 mt-0.5 font-bold">+10人</span>
+                <span class="text-[9px] text-slate-500">$2500</span>
+                <span class="text-[9px] text-pink-500 mt-0.5 font-bold">+10人</span>
             </button>
         </div>
     </div>
 
-    <!-- 弹窗：开始 -->
+    <!-- 弹窗部分 -->
     <div id="start-modal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
         <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-8 text-center">
             <div class="text-6xl mb-4">⚡</div>
-            <h1 class="text-2xl font-black text-slate-800 mb-2">高压模式启动</h1>
-            <p class="text-slate-500 mb-6 text-sm leading-relaxed text-left bg-slate-50 p-4 rounded-lg border border-red-100">
-                1. 初始租金: <span class="font-bold text-red-600">$2000</span> (第1周)<br>
-                2. 租金增长: 每周 <span class="font-bold text-red-600">+$250</span><br>
-                3. 日运营费: <span class="font-bold">慢充$10/天, 快充$20/天</span><br>
-                4. 初始负载: 50kW (买快充必爆)
+            <h1 class="text-2xl font-black text-slate-800 mb-2">开业准备</h1>
+            <p class="text-slate-500 mb-6 text-sm leading-relaxed text-left bg-slate-50 p-4 rounded-lg border border-slate-200">
+                1. 初始负载: <span class="font-bold text-black">50kW</span><br>
+                2. 初始资金: <span class="font-bold text-green-600">$3000</span><br>
+                3. 周租金: $1000 起, 每周涨 $200<br>
+                4. 充电价格: 锁定车辆进入时的电价
             </p>
             <button onclick="startGame()" class="w-full py-3.5 bg-blue-600 text-white font-bold rounded-xl shadow-lg hover:bg-blue-700 active:scale-95 transition">
-                开始挑战
+                开始营业
             </button>
         </div>
     </div>
 
-    <!-- 弹窗：周结算账单 -->
+    <div id="event-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 text-center transform transition-all scale-100">
+            <div class="text-5xl mb-3" id="ev-icon">📢</div>
+            <h2 class="text-xl font-bold text-slate-800 mb-2">突发事件</h2>
+            <div class="bg-slate-50 p-4 rounded-xl text-left border border-slate-100 mb-4">
+                <div class="text-sm text-slate-600 mb-2 font-bold" id="ev-title">...</div>
+                <div class="text-xs text-slate-500 mb-2" id="ev-desc">...</div>
+                <div class="flex justify-between items-center border-t border-slate-200 pt-2">
+                    <span class="text-xs text-slate-400">财务影响</span>
+                    <span class="font-bold font-mono text-lg" id="ev-amt">$0</span>
+                </div>
+            </div>
+            <button onclick="closeEventModal()" class="w-full py-3 bg-blue-600 text-white font-bold rounded-xl shadow-lg">确认</button>
+        </div>
+    </div>
+
     <div id="bill-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
         <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 text-center">
             <div class="text-5xl mb-3">🧾</div>
@@ -290,24 +301,6 @@
         </div>
     </div>
 
-    <!-- 弹窗：随机事件 -->
-    <div id="event-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 text-center transform transition-all scale-100">
-            <div class="text-5xl mb-3" id="ev-icon">📢</div>
-            <h2 class="text-xl font-bold text-slate-800 mb-2">突发事件</h2>
-            <div class="bg-slate-50 p-4 rounded-xl text-left border border-slate-100 mb-4">
-                <div class="text-sm text-slate-600 mb-2 font-bold" id="ev-title">...</div>
-                <div class="text-xs text-slate-500 mb-2" id="ev-desc">...</div>
-                <div class="flex justify-between items-center border-t border-slate-200 pt-2">
-                    <span class="text-xs text-slate-400">财务影响</span>
-                    <span class="font-bold font-mono text-lg" id="ev-amt">$0</span>
-                </div>
-            </div>
-            <button onclick="closeEventModal()" class="w-full py-3 bg-blue-600 text-white font-bold rounded-xl shadow-lg">确认</button>
-        </div>
-    </div>
-
-    <!-- 弹窗：破产 -->
     <div id="game-over-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80">
         <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-8 text-center">
             <h1 class="text-3xl font-black text-red-600 mb-2">破产清算</h1>
@@ -322,15 +315,12 @@
 
 <script>
 const CONFIG = {
-    initialMoney: 5000, 
-    dailyCost: { slowCharger: 10, fastCharger: 20, solar: 5, battery: 5, transformer: 5 },
-    baseWeeklyRent: 2000, 
-    rentGrowth: 250, // 修正：每周涨250
-    costs: { 
-        slowCharger: 1500, fastCharger: 7500, solar: 4000, 
-        battery: 6000, transformer: 5000, marketing: 5000 
-    },
-    batteryCap: 200, batteryRate: 100, solarMax: 30, 
+    initialMoney: 3000, 
+    dailyCost: { slowCharger: 5, fastCharger: 10, solar: 2.5, battery: 2.5, transformer: 2.5 },
+    baseWeeklyRent: 1000, 
+    rentGrowth: 200, 
+    costs: { slowCharger: 800, fastCharger: 3000, solar: 2000, battery: 2000, transformer: 2500, marketing: 2500 },
+    batteryCap: 10, batteryRate: 10, solarMax: 10, 
     baseLoadLimit: 50, transformerBoost: 50, chargerPower: { slow: 7, fast: 60 },
     gridPrices: [0.3, 0.3, 0.3, 0.3, 0.3, 0.3, 0.4, 0.8, 1.2, 1.5, 1.5, 1.2, 0.8, 0.8, 1.0, 1.2, 1.8, 1.8, 1.5, 1.0, 0.8, 0.6, 0.5, 0.4],
     trafficCurve: [0.05, 0.05, 0.05, 0.05, 0.1, 0.2, 0.4, 0.8, 0.9, 0.8, 0.7, 0.6, 0.6, 0.6, 0.7, 0.9, 1.0, 1.0, 0.9, 0.7, 0.5, 0.3, 0.2, 0.1],
@@ -339,8 +329,7 @@ const CONFIG = {
 
 let state = {
     money: CONFIG.initialMoney, day: 1, hour: 8, minute: 0, 
-    paused: true, gameSpeed: 500,
-    lastGameSpeed: 500, // 记录暂停前的速度
+    paused: true, gameSpeed: 500, lastGameSpeed: 500,
     assets: { slowCharger: 1, fastCharger: 0, solar: 0, battery: 0, transformer: 0 }, 
     batteryKwh: 0, price: 1.5, 
     dailyPoolMax: CONFIG.baseDailyPool, dailyPoolLeft: CONFIG.baseDailyPool,
@@ -361,14 +350,13 @@ function resizeCanvas() {
     const wrapper = document.getElementById('canvas-wrapper');
     const dpr = window.devicePixelRatio || 1;
     
-    // 动态计算所需高度，确保能容纳所有设备
-    // 头部Hub占120px，每行(3个)桩占150px
     const totalChargers = state.assets.slowCharger + state.assets.fastCharger;
-    const rows = Math.ceil(totalChargers / 3);
-    // 基础高度 350 + 每行高度
-    const minHeight = 350;
-    const requiredHeight = 150 + (rows * 160); // 增加行高
+    const cols = 5; 
+    const rows = Math.ceil(totalChargers / cols);
     
+    // 动态调整高度
+    const minHeight = 400;
+    const requiredHeight = 110 + (rows * 85); 
     const displayHeight = Math.max(minHeight, requiredHeight);
     
     canvas.style.height = displayHeight + 'px';
@@ -383,10 +371,9 @@ function resizeCanvas() {
 }
 window.addEventListener('resize', resizeCanvas);
 
-// Polyfill
 if (!ctx.roundRect) {
     ctx.roundRect = function(x, y, w, h, r) {
-        this.rect(x, y, w, h); // simplified fallback
+        this.rect(x, y, w, h);
     };
 }
 
@@ -480,15 +467,8 @@ function triggerRandomEvent() {
     let cap = Math.max(100, state.money * 0.2);
     let amount = Math.floor(100 + Math.random() * (cap - 100));
     
-    const badEvents = [
-        { t: "设备故障", d: "变压器熔断维修", i: "🔥" },
-        { t: "监管罚款", d: "消防检查未通过", i: "👮" },
-        { t: "电网波动", d: "上游电网故障损耗", i: "⚡" }
-    ];
-    const goodEvents = [
-        { t: "政府补贴", d: "绿色能源补贴", i: "💰" },
-        { t: "技术突破", d: "维护成本返还", i: "🔬" }
-    ];
+    const badEvents = [{t:"设备故障",i:"🔥"},{t:"合规罚款",i:"👮"},{t:"电网波动",i:"⚡"}];
+    const goodEvents = [{t:"政府补贴",i:"💰"},{t:"技术退税",i:"🔬"}];
 
     const pool = isBad ? badEvents : goodEvents;
     const ev = pool[Math.floor(Math.random() * pool.length)];
@@ -498,7 +478,7 @@ function triggerRandomEvent() {
     
     document.getElementById('ev-icon').innerText = ev.i;
     document.getElementById('ev-title').innerText = ev.t;
-    document.getElementById('ev-desc').innerText = ev.d;
+    document.getElementById('ev-desc').innerText = isBad ? "需支付维修或罚款" : "获得额外运营收入";
     document.getElementById('ev-amt').innerText = (finalAmount > 0 ? "+" : "") + `$${Math.abs(finalAmount)}`;
     document.getElementById('ev-amt').className = finalAmount > 0 ? "font-bold font-mono text-lg text-green-600" : "font-bold font-mono text-lg text-red-600";
     
@@ -519,7 +499,6 @@ function dailySettle() {
         scheduleNextEvent();
     }
 
-    // 周日结算账单
     if (state.day > 1 && (state.day - 1) % 7 === 0) {
         const rent = calcWeeklyRent();
         state.pendingRent = rent;
@@ -534,12 +513,8 @@ function dailySettle() {
 function showBillModal() {
     document.getElementById('bill-balance').innerText = `$${state.money.toFixed(2)}`;
     document.getElementById('bill-rent').innerText = `-$${state.pendingRent}`;
-    
     const final = state.money - state.pendingRent;
-    const finalEl = document.getElementById('bill-final');
-    finalEl.innerText = `$${final.toFixed(2)}`;
-    finalEl.className = final >= 0 ? "font-mono font-bold text-green-600" : "font-mono font-bold text-red-600";
-    
+    document.getElementById('bill-final').innerText = `$${final.toFixed(2)}`;
     document.getElementById('bill-modal').classList.remove('hidden');
 }
 
@@ -547,10 +522,9 @@ function payBill() {
     state.money -= state.pendingRent;
     state.pendingRent = 0;
     state.weeksSurvived++; 
-    
     document.getElementById('bill-modal').classList.add('hidden');
     checkBankruptcy();
-    if (state.money >= 0) setSpeed(state.lastGameSpeed); // 恢复之前的速度
+    if (state.money >= 0) setSpeed(state.lastGameSpeed); 
 }
 
 function trySpawnCar(baseProb) {
@@ -560,9 +534,10 @@ function trySpawnCar(baseProb) {
     const myPrice = state.price;
     let acceptChance = 1.0;
 
+    // > $2.0 概率稍高一点 (原0.05, 现0.2)
     if (myPrice > 2.0) {
         const excess = myPrice - 2.0;
-        acceptChance = 0.05 / (excess * 10 + 1);
+        acceptChance = 0.2 / (excess * 2 + 1); 
     } else {
         if (myPrice <= 1.2) acceptChance = 1.0;
         else {
@@ -600,7 +575,9 @@ function trySpawnCar(baseProb) {
             type: spawnType, slot: slot, 
             ticksLeft: patience, 
             kwhNeeded: kwhNeed, kwhReceived: 0,
-            color: spawnType === 'slow' ? '#2563eb' : '#9333ea'
+            color: spawnType === 'slow' ? '#2563eb' : '#9333ea',
+            // 锁定电价
+            priceLocked: state.price
         });
     }
 }
@@ -640,7 +617,7 @@ function processEnergy(gridPrice) {
     });
 
     let sunH = (state.hour >= 6 && state.hour <= 18) ? Math.sin((state.hour-6)/12*Math.PI) : 0;
-    const solarKwh = state.assets.solar * CONFIG.solarMax * sunH * (0.5+Math.random()*0.5);
+    const solarKwh = state.assets.solar * CONFIG.solarMax * sunH * (0.5+Math.random()*0.5) / 6; // per tick
 
     let remainDemandKwh = actualTotalKwhPerTick;
     let usedSolarKwh = Math.min(remainDemandKwh, solarKwh);
@@ -670,7 +647,16 @@ function processEnergy(gridPrice) {
 
     let usedGridKwh = remainDemandKwh + gridChargeKwh;
 
-    const revenue = actualTotalKwhPerTick * state.price;
+    // 收入计算使用车辆锁定电价
+    let revenue = 0;
+    state.cars.forEach(car => {
+        const pKw = CONFIG.chargerPower[car.type];
+        const pKwh = (pKw * throttle) / 6;
+        const need = car.kwhNeeded - car.kwhReceived; 
+        const added = Math.min(pKwh, need); 
+        if (added > 0) revenue += added * car.priceLocked;
+    });
+
     const cost = usedGridKwh * gridPrice;
     const profit = revenue - cost;
 
@@ -682,7 +668,7 @@ function processEnergy(gridPrice) {
         solar: usedSolarKwh * 6, batt: usedBattKwh * 6, grid: usedGridKwh * 6
     };
 
-    if (state.gameSpeed >= 250 && profit !== 0 && state.minute % 20 === 0) {
+    if (state.gameSpeed >= 125 && profit !== 0 && state.minute % 20 === 0) {
         const col = profit > 0 ? '#16a34a' : '#ef4444';
         const txt = profit > 0 ? `+${profit.toFixed(2)}` : `${profit.toFixed(2)}`;
         spawnFloatText(txt, col);
@@ -712,37 +698,40 @@ function draw() {
     ctx.fillStyle = (h>=6 && h<=18) ? '#fcd34d' : '#cbd5e1'; 
     ctx.fill();
 
-    drawHub(20, 20);
+    drawHub(20, 50); 
     drawChargers();
 }
 
 function drawHub(x, y) {
     ctx.fillStyle = '#ffffff'; ctx.strokeStyle='#94a3b8'; ctx.lineWidth=2;
-    ctx.beginPath(); ctx.roundRect(x, y, 220, 90, 10); ctx.fill(); ctx.stroke();
+    ctx.beginPath(); ctx.roundRect(x, y, 200, 70, 8); ctx.fill(); ctx.stroke();
 
-    ctx.fillStyle = '#64748b'; ctx.font = 'bold 12px sans-serif';
-    ctx.fillText('能源中心', x + 10, y + 20);
+    ctx.fillStyle = '#64748b'; ctx.font = 'bold 10px sans-serif';
+    ctx.fillText('能源中心', x + 10, y + 15);
 
     const eff = (state.hour >= 6 && state.hour <= 18) ? Math.sin((state.hour-6)/12*Math.PI) : 0;
     ctx.fillStyle = '#eab308'; 
-    ctx.fillText(`☀️ 光伏 x${state.assets.solar}`, x+10, y+45);
-    ctx.fillStyle = '#fef08a'; ctx.fillRect(x+10, y+52, 70, 8);
-    ctx.fillStyle = '#eab308'; ctx.fillRect(x+10, y+52, 70*eff, 8);
+    ctx.fillText(`光伏 ${state.assets.solar}`, x+10, y+35);
+    ctx.fillStyle = '#fef08a'; ctx.fillRect(x+10, y+40, 60, 5);
+    ctx.fillStyle = '#eab308'; ctx.fillRect(x+10, y+40, 60*eff, 5);
 
     const max = state.assets.battery * CONFIG.batteryCap;
     const pct = max > 0 ? state.batteryKwh/max : 0;
     ctx.fillStyle = '#22c55e';
-    ctx.fillText(`🔋 储能 x${state.assets.battery}`, x+110, y+45);
-    ctx.strokeStyle = '#64748b'; ctx.strokeRect(x+110, y+52, 50, 16); ctx.fillRect(x+162, y+56, 3, 8);
+    ctx.fillText(`储能 ${state.assets.battery}`, x+100, y+35);
+    ctx.strokeStyle = '#64748b'; ctx.strokeRect(x+100, y+40, 40, 10); ctx.fillRect(x+142, y+42, 2, 6);
     ctx.fillStyle = pct<0.2 ? '#ef4444' : '#22c55e';
-    ctx.fillRect(x+112, y+54, 46*pct, 12);
+    ctx.fillRect(x+101, y+41, 38*pct, 8);
+    
+    ctx.fillStyle = '#64748b'; ctx.font='9px sans-serif';
+    ctx.fillText(max>0 ? `${state.batteryKwh.toFixed(0)}/${max}` : '', x+150, y+48);
 }
 
 function drawChargers() {
     const startX = 20;
-    const startY = 130;
-    const gapX = 110;
-    const gapY = 150;
+    const startY = 140; 
+    const gapX = 50;    // 保持紧凑
+    const gapY = 80;
     const cols = Math.floor((canvasWidth - 40) / gapX); 
 
     const render = (type, idx, absIdx) => {
@@ -752,45 +741,37 @@ function drawChargers() {
         const y = startY + row * gapY;
 
         ctx.fillStyle = 'rgba(0,0,0,0.05)';
-        ctx.beginPath();
-        ctx.ellipse(x+25, y+85, 30, 10, 0, 0, Math.PI*2);
-        ctx.fill();
+        ctx.beginPath(); ctx.ellipse(x+20, y+45, 15, 6, 0, 0, Math.PI*2); ctx.fill();
 
-        ctx.fillStyle = '#fff';
-        ctx.strokeStyle = '#94a3b8';
-        ctx.lineWidth = 2;
-        ctx.fillRect(x, y, 50, 90);
-        ctx.strokeRect(x, y, 50, 90);
+        ctx.fillStyle = '#fff'; ctx.strokeStyle = '#94a3b8'; ctx.lineWidth = 1.5;
+        ctx.fillRect(x+5, y, 30, 50); ctx.strokeRect(x+5, y, 30, 50);
 
         ctx.fillStyle = type === 'slow' ? '#3b82f6' : '#a855f7';
-        ctx.fillRect(x + 2, y + 2, 46, 8);
+        ctx.fillRect(x+7, y+2, 26, 4);
 
         const car = state.cars.find(c => c.type === type && c.slot === idx);
         
         if (car) {
             ctx.fillStyle = car.color;
-            ctx.beginPath();
-            ctx.roundRect(x-5, y + 30, 60, 40, 8);
-            ctx.fill();
-            ctx.fillStyle = '#bfdbfe';
-            ctx.fillRect(x, y + 35, 50, 15);
+            ctx.beginPath(); ctx.roundRect(x-5, y+20, 40, 25, 4); ctx.fill();
+            ctx.fillStyle = '#bfdbfe'; ctx.fillRect(x+5, y+24, 30, 8);
             
+            // 充电进度条 (绿色)
             const pct = Math.min(1, car.kwhReceived / car.kwhNeeded);
-            ctx.fillStyle = '#22c55e';
-            ctx.fillRect(x+5, y+20, 40 * pct, 6);
+            // 进度条背景
+            ctx.fillStyle = '#374151'; 
+            ctx.fillRect(x-5, y+15, 40, 3);
+            // 进度
+            ctx.fillStyle = '#4ade80';
+            ctx.fillRect(x-5, y+15, 40 * pct, 3);
 
             if (!state.paused) {
-                ctx.strokeStyle = '#22c55e';
-                ctx.lineWidth = 2;
-                ctx.beginPath();
-                ctx.moveTo(x+25, y+20);
-                ctx.lineTo(x+25, y+30);
-                ctx.stroke();
+                ctx.strokeStyle = '#22c55e'; ctx.lineWidth = 1.5;
+                ctx.beginPath(); ctx.moveTo(x+20, y+10); ctx.lineTo(x+20, y+20); ctx.stroke();
             }
         } else {
-            ctx.fillStyle = '#cbd5e1';
-            ctx.font = '12px sans-serif';
-            ctx.fillText('空闲', x+12, y+50);
+            ctx.fillStyle = '#cbd5e1'; ctx.font = '9px sans-serif';
+            ctx.fillText('空', x+15, y+30);
         }
     };
 
@@ -835,7 +816,6 @@ function updateUI() {
 
     const d = state.lastTickData;
     document.getElementById('ui-load-text').innerText = `${d.load.toFixed(1)} / ${d.limit} kW`;
-    document.getElementById('ui-load-label').innerText = `实时功率 (上限 ${d.limit}kW)`;
     
     const base = d.limit > 0 ? d.limit : 1;
     const pSolar = (d.solar / base) * 100;
@@ -868,7 +848,7 @@ function updateUI() {
         speedLabel.className = "text-[10px] text-slate-400 font-bold animate-pulse";
     } else {
         const ms = state.gameSpeed;
-        const txt = ms===500?"1x":ms===250?"2x":"4x";
+        const txt = ms===500?"1x":ms===125?"4x":"8x";
         speedLabel.innerText = "> " + txt;
         speedLabel.className = "text-[10px] text-green-600 font-bold";
     }
@@ -913,8 +893,8 @@ function setSpeed(ms) {
     let activeId = '';
     if(ms === 0) activeId = 'speed-0';
     else if(ms === 500) activeId = 'speed-1';
-    else if(ms === 250) activeId = 'speed-2';
     else if(ms === 125) activeId = 'speed-4';
+    else if(ms === 62.5) activeId = 'speed-8';
     
     if(activeId) {
         const btn = document.getElementById(activeId);
@@ -927,7 +907,6 @@ function setSpeed(ms) {
         clearTimeout(state.timer);
     } else {
         state.gameSpeed = ms;
-        // 保存速度以便恢复
         state.lastGameSpeed = ms;
         if (state.paused) {
             state.paused = false;
@@ -935,6 +914,22 @@ function setSpeed(ms) {
         }
     }
     updateUI();
+}
+
+function togglePause() {
+    if (state.paused) {
+        state.paused = false;
+        const btn = document.getElementById('pause-btn');
+        btn.innerText = "⏸ 暂停";
+        btn.classList.replace('bg-blue-600', 'bg-slate-800');
+        tick();
+    } else {
+        state.paused = true;
+        const btn = document.getElementById('pause-btn');
+        btn.innerText = "▶ 继续";
+        btn.classList.replace('bg-slate-800', 'bg-blue-600');
+        clearTimeout(state.timer);
+    }
 }
 
 function updatePrice(v) {
@@ -954,12 +949,10 @@ function closeRentModal() {
     if (state.money >= 0) setSpeed(state.lastGameSpeed);
 }
 
-// 支付账单
 function payBill() {
     state.money -= state.pendingRent;
     state.pendingRent = 0;
     state.weeksSurvived++; 
-    
     document.getElementById('bill-modal').classList.add('hidden');
     checkBankruptcy();
     if (state.money >= 0) setSpeed(state.lastGameSpeed); 
