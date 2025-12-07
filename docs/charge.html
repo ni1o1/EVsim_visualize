@@ -1292,6 +1292,27 @@ function closeEventModal() {
     if (state.money >= 0) setSpeed(state.lastGameSpeed); 
 }
 
+// 修复：添加遗漏的显示账单弹窗函数
+function showBillModal() {
+    const balance = state.money;
+    const rent = state.pendingRent;
+    const final = balance - rent;
+
+    document.getElementById('bill-balance').innerText = `$${balance.toFixed(2)}`;
+    document.getElementById('bill-rent').innerText = `-$${rent.toFixed(2)}`;
+    document.getElementById('bill-final').innerText = `$${final.toFixed(2)}`;
+    
+    // 如果结余为负，标红显示
+    const finalEl = document.getElementById('bill-final');
+    if (final < 0) {
+        finalEl.className = "font-mono font-bold text-red-600";
+    } else {
+        finalEl.className = "font-mono font-bold text-green-600";
+    }
+
+    document.getElementById('bill-modal').classList.remove('hidden');
+}
+
 function payBill() {
     state.money -= state.pendingRent;
     state.pendingRent = 0;
@@ -1340,3 +1361,4 @@ function setSpeed(ms) {
 </script>
 </body>
 </html>
+
