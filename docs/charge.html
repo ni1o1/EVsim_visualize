@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>EV Tycoon Progress (Weather Update)</title>
+    <title>EV Tycoon (Dynamic Pricing)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body { 
@@ -217,36 +217,36 @@
             </div>
         </div>
 
-        <!-- 第二行：资产购买区 -->
+        <!-- 第二行：资产购买区 - 已修改：增加动态价格ID -->
         <div class="grid grid-cols-3 gap-2">
             <button onclick="buyAsset('slowCharger')" class="btn bg-blue-50 border-blue-200 text-blue-800 rounded-lg h-14 flex flex-col items-center justify-center hover:bg-blue-100">
                 <span class="font-bold text-xs">慢充 (7kW)</span>
-                <span class="text-[9px] text-slate-500">$400 | 日$5</span>
+                <span class="text-[9px] text-slate-500"><span id="cost-slow">$400</span> | 日$5</span>
                 <span class="text-[9px] bg-blue-200 px-2 rounded-full mt-0.5 font-bold" id="count-slow">1</span>
             </button>
             <button onclick="buyAsset('fastCharger')" class="btn bg-purple-50 border-purple-200 text-purple-800 rounded-lg h-14 flex flex-col items-center justify-center hover:bg-purple-100">
                 <span class="font-bold text-xs">快充 (60kW)</span>
-                <span class="text-[9px] text-slate-500">$1500 | 日$10</span>
+                <span class="text-[9px] text-slate-500"><span id="cost-fast">$1500</span> | 日$10</span>
                 <span class="text-[9px] bg-purple-200 px-2 rounded-full mt-0.5 font-bold" id="count-fast">0</span>
             </button>
             <button onclick="buyAsset('transformer')" class="btn bg-gray-100 border border-gray-300 text-slate-700 rounded-lg h-14 flex flex-col items-center justify-center border-dashed border-2 border-slate-400 hover:bg-gray-200">
                 <span class="font-bold text-xs">配电 (+50kW)</span>
-                <span class="text-[9px] text-slate-500">$1250 | 日$2.5</span>
+                <span class="text-[9px] text-slate-500"><span id="cost-transformer">$1250</span> | 日$2.5</span>
                 <span class="text-[9px] bg-gray-300 px-2 rounded-full mt-0.5 font-bold" id="count-transformer">0</span>
             </button>
             <button onclick="buyAsset('solar')" class="btn bg-yellow-50 border border-yellow-200 text-yellow-800 rounded-lg h-14 flex flex-col items-center justify-center hover:bg-yellow-100">
                 <span class="font-bold text-xs">光伏 (10kW)</span>
-                <span class="text-[9px] text-slate-500">$1000 | 日$2.5</span>
+                <span class="text-[9px] text-slate-500"><span id="cost-solar">$1000</span> | 日$2.5</span>
                 <span class="text-[9px] bg-yellow-200 px-2 rounded-full mt-0.5 font-bold" id="count-solar">0</span>
             </button>
             <button onclick="buyAsset('battery')" class="btn bg-green-50 border border-green-200 text-green-800 rounded-lg h-14 flex flex-col items-center justify-center hover:bg-green-100">
                 <span class="font-bold text-xs">储能 (100kWh)</span>
-                <span class="text-[9px] text-slate-500">$1000 | 日$2.5</span>
+                <span class="text-[9px] text-slate-500"><span id="cost-battery">$1000</span> | 日$2.5</span>
                 <span class="text-[9px] bg-green-200 px-2 rounded-full mt-0.5 font-bold" id="count-battery">0</span>
             </button>
             <button onclick="buyAsset('marketing')" class="btn bg-pink-50 border border-pink-200 text-pink-800 rounded-lg h-14 flex flex-col items-center justify-center border-dashed border-2 hover:bg-pink-100">
                 <span class="font-bold text-xs">推广</span>
-                <span class="text-[9px] text-slate-500">$1250</span>
+                <span class="text-[9px] text-slate-500"><span id="cost-marketing">$1250</span></span>
                 <span class="text-[9px] text-pink-500 mt-0.5 font-bold">+10人</span>
             </button>
         </div>
@@ -256,15 +256,12 @@
     <div id="start-modal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
         <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-8 text-center">
             <div class="text-6xl mb-4">⚡</div>
-            <h1 class="text-2xl font-black text-slate-800 mb-2">开业准备</h1>
+            <h1 class="text-2xl font-black text-slate-800 mb-2">通胀模式</h1>
             <p class="text-slate-500 mb-6 text-sm leading-relaxed text-left bg-slate-50 p-4 rounded-lg border border-slate-200">
-                1. 初始负载: <span class="font-bold text-black">50kW</span><br>
-                2. 初始资金: <span class="font-bold text-green-600">$3000</span><br>
-                3. 周租金: $1000 起, 每周涨 $250<br>
-                4. 天气系统: <br>
-                   &nbsp;&nbsp;☀️ 晴 (100% 发电) <br>
-                   &nbsp;&nbsp;☁️ 阴 (60% 发电) <br>
-                   &nbsp;&nbsp;🌧️ 雨 (10% 发电)
+                1. 初始资金: <span class="font-bold text-green-600">$3000</span><br>
+                2. 初始设备: 1个慢充桩<br>
+                3. <span class="text-red-500 font-bold">通货膨胀:</span> 每购买一次资源，该资源价格永久上涨 <span class="font-bold text-black">20%</span>。<br>
+                4. 请谨慎规划资金流！
             </p>
             <button onclick="startGame()" class="w-full py-3.5 bg-blue-600 text-white font-bold rounded-xl shadow-lg hover:bg-blue-700 active:scale-95 transition">
                 开始营业
@@ -329,6 +326,7 @@ const CONFIG = {
     dailyCost: { slowCharger: 5, fastCharger: 10, solar: 2.5, battery: 2.5, transformer: 2.5 },
     baseWeeklyRent: 1000, 
     rentGrowth: 250, 
+    // 初始价格
     costs: { slowCharger: 400, fastCharger: 1500, solar: 1000, battery: 1000, transformer: 1250, marketing: 1250 },
     batteryCap: 100, batteryRate: 10, solarMax: 10, 
     baseLoadLimit: 50, transformerBoost: 50, chargerPower: { slow: 7, fast: 60 },
@@ -356,6 +354,8 @@ function getInitialState() {
         money: CONFIG.initialMoney, day: 1, hour: 8, minute: 0, 
         paused: true, gameSpeed: 500, lastGameSpeed: 500,
         assets: { slowCharger: 1, fastCharger: 0, solar: 0, battery: 0, transformer: 0 }, 
+        // 关键改动：状态中保存当前成本，从CONFIG复制一份
+        currentCosts: { ...CONFIG.costs },
         batteryKwh: 0, price: 1.5, 
         dailyPoolMax: CONFIG.baseDailyPool, dailyPoolLeft: CONFIG.baseDailyPool,
         cars: [], 
@@ -579,7 +579,16 @@ function payBill() {
 function trySpawnCar(baseProb) {
     if (state.dailyPoolLeft <= 0) return;
     
-    // 雨天稍微降低一点点客流欲望(可选，目前暂不影响)
+    const totalChargers = state.assets.slowCharger + state.assets.fastCharger;
+    const spawnAttempts = 1 + Math.floor(totalChargers / 3);
+    
+    for (let i = 0; i < spawnAttempts; i++) {
+        if (state.dailyPoolLeft <= 0) break;
+        attemptSingleSpawn(baseProb);
+    }
+}
+
+function attemptSingleSpawn(baseProb) {
     let weatherMod = 1.0;
     if (state.weather === 'rainy') weatherMod = 0.9;
     
@@ -668,12 +677,8 @@ function processEnergy(gridPrice) {
         car.kwhReceived += added;
     });
 
-    // 计算光伏
     let sunH = (state.hour >= 6 && state.hour <= 18) ? Math.sin((state.hour-6)/12*Math.PI) : 0;
-    
-    // 应用天气效率
     const weatherEfficiency = CONFIG.weather.eff[state.weather];
-    
     const solarKwh = state.assets.solar * CONFIG.solarMax * sunH * weatherEfficiency * (0.8+Math.random()*0.4) / 6; 
 
     let remainDemandKwh = actualTotalKwhPerTick;
@@ -736,24 +741,20 @@ function draw() {
     ctx.clearRect(0, 0, canvasWidth, canvasHeight);
     const h = state.hour;
     
-    // 天空颜色逻辑
     let skyColor = '#f8fafc';
-    
     if (state.weather === 'rainy') {
-        if (h < 6 || h > 19) skyColor = '#334155'; // 雨天夜晚深蓝灰
-        else skyColor = '#94a3b8'; // 雨天白天灰色
+        if (h < 6 || h > 19) skyColor = '#334155';
+        else skyColor = '#94a3b8';
     } else if (state.weather === 'cloudy') {
         if (h < 6 || h > 19) skyColor = '#475569';
-        else skyColor = '#cbd5e1'; // 阴天白天浅灰
+        else skyColor = '#cbd5e1';
     } else {
-        // 晴天
         if (h < 6 || h > 19) skyColor = '#e2e8f0'; 
-        else if (h > 17) skyColor = '#fff7ed'; // 黄昏
-        else if (CONFIG.gridPrices[h] >= 1.5) skyColor = '#fff'; // 高峰电价稍微亮白一点
-        else skyColor = '#f0f9ff'; // 正常晴天淡蓝
+        else if (h > 17) skyColor = '#fff7ed'; 
+        else if (CONFIG.gridPrices[h] >= 1.5) skyColor = '#fff';
+        else skyColor = '#f0f9ff';
     }
     
-    // 如果是晴天且是黄昏，绘制渐变
     if (state.weather === 'sunny' && h > 17 && h <= 19) {
         const grd = ctx.createLinearGradient(0, 0, 0, canvasHeight);
         grd.addColorStop(0, '#fdba74');
@@ -765,28 +766,18 @@ function draw() {
     
     ctx.fillRect(0, 0, canvasWidth, canvasHeight);
 
-    // 太阳 / 月亮 / 乌云
     ctx.beginPath();
     let celestialX = canvasWidth - 50;
     let celestialY = 50;
     
     if (state.weather === 'rainy') {
-        // 雨天不画太阳，画一片乌云
         ctx.fillStyle = '#64748b';
-        ctx.beginPath();
-        ctx.ellipse(celestialX, celestialY, 40, 20, 0, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.beginPath();
-        ctx.ellipse(celestialX-20, celestialY+10, 30, 20, 0, 0, Math.PI * 2);
-        ctx.fill();
+        ctx.beginPath(); ctx.ellipse(celestialX, celestialY, 40, 20, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.ellipse(celestialX-20, celestialY+10, 30, 20, 0, 0, Math.PI * 2); ctx.fill();
     } else if (state.weather === 'cloudy') {
-        // 阴天画浅云
         ctx.fillStyle = '#94a3b8';
-        ctx.beginPath();
-        ctx.ellipse(celestialX, celestialY, 40, 25, 0, 0, Math.PI * 2);
-        ctx.fill();
+        ctx.beginPath(); ctx.ellipse(celestialX, celestialY, 40, 25, 0, 0, Math.PI * 2); ctx.fill();
     } else {
-        // 晴天
         ctx.arc(celestialX, celestialY, 30, 0, Math.PI * 2);
         ctx.fillStyle = (h>=6 && h<=18) ? '#fcd34d' : '#cbd5e1'; 
         ctx.fill();
@@ -795,13 +786,9 @@ function draw() {
     drawHub(20, 50); 
     drawChargers();
 
-    // 如果下雨，绘制雨滴特效
-    if (state.weather === 'rainy') {
-        drawRain();
-    }
+    if (state.weather === 'rainy') drawRain();
 }
 
-// 简单的下雨动画
 function drawRain() {
     ctx.strokeStyle = 'rgba(148, 163, 184, 0.6)';
     ctx.lineWidth = 1;
@@ -812,7 +799,7 @@ function drawRain() {
         const y = Math.random() * canvasHeight;
         const len = 10 + Math.random() * 15;
         ctx.moveTo(x, y);
-        ctx.lineTo(x - 5, y + len); // 稍微斜着下
+        ctx.lineTo(x - 5, y + len); 
     }
     ctx.stroke();
 }
@@ -831,7 +818,6 @@ function drawHub(x, y) {
     ctx.fillText(`光伏 ${state.assets.solar} (${(weatherEff*100).toFixed(0)}%)`, x+10, y+35);
     ctx.fillStyle = '#fef08a'; ctx.fillRect(x+10, y+40, 60, 5);
     
-    // 进度条显示实际效率
     ctx.fillStyle = state.weather === 'rainy' ? '#94a3b8' : '#eab308'; 
     ctx.fillRect(x+10, y+40, 60 * eff * weatherEff, 5);
 
@@ -928,7 +914,6 @@ function updateUI() {
     document.getElementById('ui-day').innerText = `D${state.day}`;
     document.getElementById('ui-pool').innerText = `${state.dailyPoolLeft}/${state.dailyPoolMax}`;
 
-    // 更新天气 UI
     const w = state.weather;
     document.getElementById('ui-weather-icon').innerText = CONFIG.weather.icons[w];
     const eff = CONFIG.weather.eff[w] * 100;
@@ -968,6 +953,15 @@ function updateUI() {
     document.getElementById('count-battery').innerText = state.assets.battery;
     document.getElementById('count-transformer').innerText = state.assets.transformer;
     
+    // ======== 动态价格 UI 更新 ========
+    document.getElementById('cost-slow').innerText = `$${state.currentCosts.slowCharger}`;
+    document.getElementById('cost-fast').innerText = `$${state.currentCosts.fastCharger}`;
+    document.getElementById('cost-transformer').innerText = `$${state.currentCosts.transformer}`;
+    document.getElementById('cost-solar').innerText = `$${state.currentCosts.solar}`;
+    document.getElementById('cost-battery').innerText = `$${state.currentCosts.battery}`;
+    document.getElementById('cost-marketing').innerText = `$${state.currentCosts.marketing}`;
+    // ================================
+
     const speedLabel = document.getElementById('ui-speed-label');
     if (state.paused) {
         speedLabel.innerText = "PAUSED";
@@ -991,8 +985,9 @@ function spawnFloatText(txt, col) {
     setTimeout(()=>el.remove(), 1200);
 }
 
+// ======== 核心购买逻辑修改 ========
 function buyAsset(type) {
-    const cost = CONFIG.costs[type];
+    const cost = state.currentCosts[type]; // 使用动态价格
     if (state.money >= cost) {
         state.money -= cost;
         if (type === 'marketing') {
@@ -1003,12 +998,17 @@ function buyAsset(type) {
             state.assets[type]++;
             spawnFloatText(`购买 -$${cost}`, "#2563eb");
         }
+        
+        // 价格上涨 20%
+        state.currentCosts[type] = Math.floor(state.currentCosts[type] * 1.2);
+        
         updateUI();
         resizeCanvas();
     } else {
         spawnFloatText("资金不足", "#ef4444");
     }
 }
+// ===============================
 
 function setSpeed(ms) {
     document.querySelectorAll('.speed-btn').forEach(btn => {
