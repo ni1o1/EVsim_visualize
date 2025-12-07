@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>EV Tycoon Half Price</title>
+    <title>EV Tycoon Pause Update</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body { 
@@ -125,7 +125,8 @@
             <div class="text-xl font-mono leading-none text-slate-800 font-bold" id="ui-clock">08:00</div>
             <div class="flex justify-center items-center gap-1 w-full mt-1">
                 <span class="text-[10px] bg-slate-100 px-1 rounded text-slate-500" id="ui-day">D1</span>
-                <span class="text-[10px] text-green-600 font-bold" id="ui-speed">PAUSED</span>
+                <!-- 速度显示现在主要靠下方按钮高亮，这里作为辅助 -->
+                <span class="text-[10px] text-slate-400 font-bold" id="ui-speed-label">PAUSED</span>
             </div>
         </div>
 
@@ -139,7 +140,7 @@
     <div class="grid grid-cols-2 gap-2 mb-3 shrink-0">
         <div class="stat-card border-l-4 border-orange-400 bg-orange-50/30 items-start px-3 py-1 min-h-[40px]">
             <div class="flex justify-between w-full text-[10px] text-orange-400 font-bold">
-                <span>日运营费 (设备越多越贵)</span>
+                <span>日运营费</span>
             </div>
             <div class="text-sm font-bold text-orange-600 font-mono" id="ui-daily-cost">-$15.00</div>
         </div>
@@ -190,10 +191,12 @@
                 <span id="ui-grid-price" class="font-mono font-bold text-lg text-slate-700">$0.80</span>
             </div>
             
-            <div class="flex bg-slate-100 p-1 rounded-lg">
-                 <button onclick="setSpeed(500)" class="speed-btn flex-1 px-3 py-1.5 rounded-md text-xs font-bold bg-white shadow-sm text-blue-600" id="speed-1">1x</button>
-                 <button onclick="setSpeed(250)" class="speed-btn flex-1 px-3 py-1.5 rounded-md text-xs font-bold text-slate-500" id="speed-2">2x</button>
-                 <button onclick="setSpeed(125)" class="speed-btn flex-1 px-3 py-1.5 rounded-md text-xs font-bold text-slate-500" id="speed-4">4x</button>
+            <!-- 速度控制 (整合暂停) -->
+            <div class="flex bg-slate-100 p-1 rounded-lg gap-0.5">
+                 <button onclick="setSpeed(0)" class="speed-btn px-3 py-1.5 rounded-md text-xs font-bold text-slate-500" id="speed-0">⏸</button>
+                 <button onclick="setSpeed(500)" class="speed-btn px-3 py-1.5 rounded-md text-xs font-bold bg-white shadow-sm text-blue-600" id="speed-1">1x</button>
+                 <button onclick="setSpeed(250)" class="speed-btn px-3 py-1.5 rounded-md text-xs font-bold text-slate-500" id="speed-2">2x</button>
+                 <button onclick="setSpeed(125)" class="speed-btn px-3 py-1.5 rounded-md text-xs font-bold text-slate-500" id="speed-4">4x</button>
             </div>
         </div>
 
@@ -300,7 +303,7 @@
     </div>
 
 <script>
-/* --- 配置 --- */
+/* --- 核心配置 --- */
 const CONFIG = {
     initialMoney: 5000, 
     
@@ -315,7 +318,6 @@ const CONFIG = {
     baseWeeklyRent: 500,
     rentGrowth: 100, 
     
-    // 降价后
     costs: { 
         slowCharger: 1500, fastCharger: 7500, solar: 4000, 
         battery: 6000, transformer: 5000, marketing: 5000 
@@ -381,9 +383,15 @@ if (!ctx.roundRect) {
 /* --- 逻辑 --- */
 function startGame() {
     document.getElementById('start-modal').classList.add('hidden');
-    state.paused = false;
-    document.getElementById('ui-speed').innerText = "1x";
-    tick(); 
+    // 开始游戏，默认 1x
+    setSpeed(500); 
+    // 注意：setSpeed会自动调用tick如果非暂停，但这里我们确保一下
+    // 因为初始是paused=true，setSpeed会把按钮点亮但不会自动触发tick如果内部有判断。
+    // 我们手动处理：
+    if(state.paused) {
+        state.paused = false;
+        tick();
+    }
 }
 
 function calcDailyCost() {
@@ -570,9 +578,8 @@ function processEnergy(gridPrice) {
     state.money += profit;
     state.currentDayProfit += profit;
 
-    // 记录数据用于显示
     state.lastTickData = {
-        load: actualTotalKw, // 实际功率
+        load: actualTotalKw, 
         reqLoad: totalRequestedKw,
         limit: limitKw,
         solar: usedSolarKwh * 6,
@@ -610,7 +617,9 @@ function dailySettle() {
         state.money += totalDelta;
         
         state.paused = true;
-        updateUI();
+        updateUI(); // 先更新UI显示暂停状态
+        // 手动更新按钮样式
+        setSpeed(0); 
         
         document.getElementById('ev-rent').innerText = `-$${rent}`;
         document.getElementById('ev-event-name').innerText = ev.t;
@@ -765,11 +774,11 @@ function updateUI() {
     gpEl.innerText = `$${gp.toFixed(2)}`;
     gpEl.className = `font-mono font-bold text-lg ${gp>=1.5 ? 'text-red-500' : 'text-slate-700'}`;
 
+    // 负载显示
     const d = state.lastTickData;
     document.getElementById('ui-load-text').innerText = `${d.load.toFixed(1)} / ${d.limit} kW`;
-    document.getElementById('ui-load-label').innerText = `实时功率 (上限 ${d.limit}kW)`;
     
-    // 修复：功率条基于上限
+    // 修复：进度条基于上限 limit
     const base = d.limit > 0 ? d.limit : 1;
     const pSolar = (d.solar / base) * 100;
     const pBatt = (d.batt / base) * 100;
@@ -792,6 +801,18 @@ function updateUI() {
     ['slow','fast','solar','battery','transformer'].forEach(k => {
         document.getElementById(`count-${k}`).innerText = state.assets[k];
     });
+    
+    // UI Label Update
+    const speedLabel = document.getElementById('ui-speed-label');
+    if (state.paused) {
+        speedLabel.innerText = "PAUSED";
+        speedLabel.className = "text-[10px] text-slate-400 font-bold animate-pulse";
+    } else {
+        const ms = state.gameSpeed;
+        const txt = ms===500?"1x":ms===250?"2x":"4x";
+        speedLabel.innerText = "> " + txt;
+        speedLabel.className = "text-[10px] text-green-600 font-bold";
+    }
 }
 
 function spawnFloatText(txt, col) {
@@ -824,35 +845,36 @@ function buyAsset(type) {
 }
 
 function setSpeed(ms) {
-    state.gameSpeed = ms;
+    // UI Style Update
     document.querySelectorAll('.speed-btn').forEach(btn => {
         btn.classList.remove('bg-white', 'text-blue-600', 'shadow-sm');
         btn.classList.add('text-slate-500');
     });
-    const id = ms===500 ? 'speed-1' : (ms===250 ? 'speed-2' : 'speed-4');
-    const active = document.getElementById(id);
-    active.classList.add('bg-white', 'text-blue-600', 'shadow-sm');
-    active.classList.remove('text-slate-500');
     
-    if (!state.paused) {
-        document.getElementById('ui-speed').innerText = ms===500 ? "1x" : (ms===250 ? "2x" : "4x");
+    let activeId = '';
+    if(ms === 0) activeId = 'speed-0';
+    else if(ms === 500) activeId = 'speed-1';
+    else if(ms === 250) activeId = 'speed-2';
+    else if(ms === 125) activeId = 'speed-4';
+    
+    if(activeId) {
+        const btn = document.getElementById(activeId);
+        btn.classList.add('bg-white', 'text-blue-600', 'shadow-sm');
+        btn.classList.remove('text-slate-500');
     }
-}
 
-function togglePause() {
-    if (state.paused) {
-        state.paused = false;
-        const btn = document.getElementById('pause-btn');
-        btn.innerText = "⏸ 暂停";
-        btn.classList.replace('bg-blue-600', 'bg-slate-800');
-        tick();
-    } else {
+    // Logic
+    if (ms === 0) {
         state.paused = true;
-        const btn = document.getElementById('pause-btn');
-        btn.innerText = "▶ 继续";
-        btn.classList.replace('bg-slate-800', 'bg-blue-600');
         clearTimeout(state.timer);
+    } else {
+        state.gameSpeed = ms;
+        if (state.paused) {
+            state.paused = false;
+            tick();
+        }
     }
+    updateUI();
 }
 
 function updatePrice(v) {
@@ -863,7 +885,7 @@ function updatePrice(v) {
 function closeEventModal() {
     document.getElementById('event-modal').classList.add('hidden');
     checkBankruptcy();
-    if (state.money >= 0) togglePause(); 
+    if (state.money >= 0) setSpeed(500); // 恢复 1x
 }
 
 window.onload = function() {
