@@ -320,7 +320,7 @@
                     <div onclick="selectOption('mode', 'offgrid')" class="option-card mode-card border rounded-lg p-3 cursor-pointer flex justify-between items-center" data-val="offgrid">
                         <div>
                             <span class="block text-sm font-bold text-slate-800">离网挑战</span>
-                            <span class="text-[10px] text-slate-400">电网价格极高，必须依赖光储</span>
+                            <span class="text-[10px] text-slate-400">电网价格等于售价，必须依赖光储充</span>
                         </div>
                         <span class="text-lg">🔋</span>
                     </div>
@@ -421,7 +421,7 @@ const LOC_CONFIG = {
 const MODE_CONFIG = {
     std: { name: "标准模式", desc: "正常设置" },
     super: { name: "超充狂热", desc: "禁止购买慢充" },
-    offgrid: { name: "离网挑战", desc: "电网价格 3倍" },
+    offgrid: { name: "离网挑战", desc: "电网价格等于售价" },
     ghost: { name: "鬼城危机", desc: "客流减半" },
     jam: { name: "春运堵车", desc: "客流无限" }
 };
@@ -429,7 +429,7 @@ const MODE_CONFIG = {
 const CONFIG = {
     initialMoney: 3000, 
     dailyCost: { slowCharger: 5, fastCharger: 10, solar: 2.5, battery: 2.5, transformer: 2.5 },
-    baseWeeklyRent: 1000, 
+    baseWeeklyRent: 500, // 首周租金从500开始 
     rentGrowth: 250, 
     baseCosts: { slowCharger: 800, fastCharger: 1500, solar: 1000, battery: 1000, transformer: 1250, marketing: 1250 },
     inflationRate: 1.10, // 10% inflation
@@ -552,7 +552,7 @@ function tick() {
     
     // Grid Price Calculation
     let gridPrice = CITY_CONFIG[state.settings.city].prices[state.hour];
-    if (state.settings.mode === 'offgrid') gridPrice *= 3;
+    if (state.settings.mode === 'offgrid') gridPrice = state.price; // 离网模式：电网价格等于售价
     
     // Check Buffs for discounts
     const discountBuff = state.activeBuffs.find(b => b.type === 'gridDiscount');
@@ -1037,7 +1037,7 @@ function updateUI() {
 
     // Grid Price
     let gp = CITY_CONFIG[state.settings.city].prices[state.hour];
-    if (state.settings.mode === 'offgrid') gp *= 3;
+    if (state.settings.mode === 'offgrid') gp = state.price; // 离网模式：电网价格等于售价
     const discountBuff = state.activeBuffs.find(b => b.type === 'gridDiscount');
     if (discountBuff) gp *= discountBuff.val;
 
