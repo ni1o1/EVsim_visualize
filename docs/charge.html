@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>EV Tycoon Pause Update</title>
+    <title>EV Tycoon Fixed</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body { 
@@ -125,7 +125,6 @@
             <div class="text-xl font-mono leading-none text-slate-800 font-bold" id="ui-clock">08:00</div>
             <div class="flex justify-center items-center gap-1 w-full mt-1">
                 <span class="text-[10px] bg-slate-100 px-1 rounded text-slate-500" id="ui-day">D1</span>
-                <!-- 速度显示现在主要靠下方按钮高亮，这里作为辅助 -->
                 <span class="text-[10px] text-slate-400 font-bold" id="ui-speed-label">PAUSED</span>
             </div>
         </div>
@@ -193,8 +192,8 @@
             
             <!-- 速度控制 (整合暂停) -->
             <div class="flex bg-slate-100 p-1 rounded-lg gap-0.5">
-                 <button onclick="setSpeed(0)" class="speed-btn px-3 py-1.5 rounded-md text-xs font-bold text-slate-500" id="speed-0">⏸</button>
-                 <button onclick="setSpeed(500)" class="speed-btn px-3 py-1.5 rounded-md text-xs font-bold bg-white shadow-sm text-blue-600" id="speed-1">1x</button>
+                 <button onclick="setSpeed(0)" class="speed-btn px-3 py-1.5 rounded-md text-xs font-bold bg-white text-blue-600 shadow-sm" id="speed-0">⏸</button>
+                 <button onclick="setSpeed(500)" class="speed-btn px-3 py-1.5 rounded-md text-xs font-bold text-slate-500" id="speed-1">1x</button>
                  <button onclick="setSpeed(250)" class="speed-btn px-3 py-1.5 rounded-md text-xs font-bold text-slate-500" id="speed-2">2x</button>
                  <button onclick="setSpeed(125)" class="speed-btn px-3 py-1.5 rounded-md text-xs font-bold text-slate-500" id="speed-4">4x</button>
             </div>
@@ -303,7 +302,7 @@
     </div>
 
 <script>
-/* --- 核心配置 --- */
+/* --- 配置 --- */
 const CONFIG = {
     initialMoney: 5000, 
     
@@ -383,11 +382,8 @@ if (!ctx.roundRect) {
 /* --- 逻辑 --- */
 function startGame() {
     document.getElementById('start-modal').classList.add('hidden');
-    // 开始游戏，默认 1x
+    // Start with 1x
     setSpeed(500); 
-    // 注意：setSpeed会自动调用tick如果非暂停，但这里我们确保一下
-    // 因为初始是paused=true，setSpeed会把按钮点亮但不会自动触发tick如果内部有判断。
-    // 我们手动处理：
     if(state.paused) {
         state.paused = false;
         tick();
@@ -579,8 +575,8 @@ function processEnergy(gridPrice) {
     state.currentDayProfit += profit;
 
     state.lastTickData = {
-        load: actualTotalKw, 
-        reqLoad: totalRequestedKw,
+        load: actualTotalKw, // 显示实际负载
+        reqLoad: totalRequestedKw, // 显示需求
         limit: limitKw,
         solar: usedSolarKwh * 6,
         batt: usedBattKwh * 6,
@@ -617,9 +613,7 @@ function dailySettle() {
         state.money += totalDelta;
         
         state.paused = true;
-        updateUI(); // 先更新UI显示暂停状态
-        // 手动更新按钮样式
-        setSpeed(0); 
+        updateUI();
         
         document.getElementById('ev-rent').innerText = `-$${rent}`;
         document.getElementById('ev-event-name').innerText = ev.t;
@@ -774,9 +768,9 @@ function updateUI() {
     gpEl.innerText = `$${gp.toFixed(2)}`;
     gpEl.className = `font-mono font-bold text-lg ${gp>=1.5 ? 'text-red-500' : 'text-slate-700'}`;
 
-    // 负载显示
     const d = state.lastTickData;
     document.getElementById('ui-load-text').innerText = `${d.load.toFixed(1)} / ${d.limit} kW`;
+    document.getElementById('ui-load-label').innerText = `实时功率 (上限 ${d.limit}kW)`;
     
     // 修复：进度条基于上限 limit
     const base = d.limit > 0 ? d.limit : 1;
@@ -798,9 +792,12 @@ function updateUI() {
         powerMonitor.classList.remove('warning-pulse', 'border-red-400');
     }
 
-    ['slow','fast','solar','battery','transformer'].forEach(k => {
-        document.getElementById(`count-${k}`).innerText = state.assets[k];
-    });
+    // 修复 undefined 计数
+    document.getElementById('count-slow').innerText = state.assets.slowCharger;
+    document.getElementById('count-fast').innerText = state.assets.fastCharger;
+    document.getElementById('count-solar').innerText = state.assets.solar;
+    document.getElementById('count-battery').innerText = state.assets.battery;
+    document.getElementById('count-transformer').innerText = state.assets.transformer;
     
     // UI Label Update
     const speedLabel = document.getElementById('ui-speed-label');
@@ -845,7 +842,19 @@ function buyAsset(type) {
 }
 
 function setSpeed(ms) {
-    // UI Style Update
+    // Logic
+    if (ms === 0) {
+        state.paused = true;
+        clearTimeout(state.timer);
+    } else {
+        state.gameSpeed = ms;
+        if (state.paused) {
+            state.paused = false;
+            tick();
+        }
+    }
+    
+    // UI Update
     document.querySelectorAll('.speed-btn').forEach(btn => {
         btn.classList.remove('bg-white', 'text-blue-600', 'shadow-sm');
         btn.classList.add('text-slate-500');
@@ -861,18 +870,6 @@ function setSpeed(ms) {
         const btn = document.getElementById(activeId);
         btn.classList.add('bg-white', 'text-blue-600', 'shadow-sm');
         btn.classList.remove('text-slate-500');
-    }
-
-    // Logic
-    if (ms === 0) {
-        state.paused = true;
-        clearTimeout(state.timer);
-    } else {
-        state.gameSpeed = ms;
-        if (state.paused) {
-            state.paused = false;
-            tick();
-        }
     }
     updateUI();
 }
