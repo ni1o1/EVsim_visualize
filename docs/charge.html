@@ -122,13 +122,17 @@
             background-color: #eff6ff;
             color: #1e40af;
         }
-        
-        .mode-badge {
-            font-size: 10px;
-            padding: 2px 6px;
-            border-radius: 4px;
-            margin-right: 4px;
-            display: inline-block;
+
+        /* 价格打折时的删除线样式 */
+        .original-price {
+            text-decoration: line-through;
+            color: #94a3b8;
+            font-size: 8px;
+            margin-right: 2px;
+        }
+        .discount-price {
+            color: #16a34a;
+            font-weight: bold;
         }
     </style>
 </head>
@@ -241,32 +245,32 @@
         <div class="grid grid-cols-3 gap-2">
             <button id="btn-slow" onclick="buyAsset('slowCharger')" class="btn bg-blue-50 border-blue-200 text-blue-800 rounded-lg h-14 flex flex-col items-center justify-center hover:bg-blue-100">
                 <span class="font-bold text-xs">慢充 (7kW)</span>
-                <span class="text-[9px] text-slate-500"><span id="cost-slow">$800</span> | 日$5</span>
+                <span class="text-[9px] text-slate-500" id="cost-slow-wrapper"><span id="cost-slow">$800</span> | 日$5</span>
                 <span class="text-[9px] bg-blue-200 px-2 rounded-full mt-0.5 font-bold" id="count-slow">1</span>
             </button>
             <button id="btn-fast" onclick="buyAsset('fastCharger')" class="btn bg-purple-50 border-purple-200 text-purple-800 rounded-lg h-14 flex flex-col items-center justify-center hover:bg-purple-100">
                 <span class="font-bold text-xs">快充 (30kW)</span>
-                <span class="text-[9px] text-slate-500"><span id="cost-fast">$1500</span> | 日$10</span>
+                <span class="text-[9px] text-slate-500" id="cost-fast-wrapper"><span id="cost-fast">$1500</span> | 日$10</span>
                 <span class="text-[9px] bg-purple-200 px-2 rounded-full mt-0.5 font-bold" id="count-fast">0</span>
             </button>
             <button onclick="buyAsset('transformer')" class="btn bg-gray-100 border-gray-300 text-slate-700 rounded-lg h-14 flex flex-col items-center justify-center border-dashed border-2 border-slate-400 hover:bg-gray-200">
                 <span class="font-bold text-xs">配电 (+10kW)</span>
-                <span class="text-[9px] text-slate-500"><span id="cost-transformer">$1250</span> | 日$2.5</span>
+                <span class="text-[9px] text-slate-500" id="cost-transformer-wrapper"><span id="cost-transformer">$1250</span> | 日$2.5</span>
                 <span class="text-[9px] bg-gray-300 px-2 rounded-full mt-0.5 font-bold" id="count-transformer">0</span>
             </button>
             <button onclick="buyAsset('solar')" class="btn bg-yellow-50 border border-yellow-200 text-yellow-800 rounded-lg h-14 flex flex-col items-center justify-center hover:bg-yellow-100">
                 <span class="font-bold text-xs">光伏 (10kW)</span>
-                <span class="text-[9px] text-slate-500"><span id="cost-solar">$800</span> | 日$2.5</span>
+                <span class="text-[9px] text-slate-500" id="cost-solar-wrapper"><span id="cost-solar">$800</span> | 日$2.5</span>
                 <span class="text-[9px] bg-yellow-200 px-2 rounded-full mt-0.5 font-bold" id="count-solar">0</span>
             </button>
             <button onclick="buyAsset('battery')" class="btn bg-green-50 border border-green-200 text-green-800 rounded-lg h-14 flex flex-col items-center justify-center hover:bg-green-100">
                 <span class="font-bold text-xs">储能 (100kWh)</span>
-                <span class="text-[9px] text-slate-500"><span id="cost-battery">$800</span> | 日$2.5</span>
+                <span class="text-[9px] text-slate-500" id="cost-battery-wrapper"><span id="cost-battery">$800</span> | 日$2.5</span>
                 <span class="text-[9px] bg-green-200 px-2 rounded-full mt-0.5 font-bold" id="count-battery">0</span>
             </button>
             <button onclick="buyAsset('marketing')" class="btn bg-pink-50 border border-pink-200 text-pink-800 rounded-lg h-14 flex flex-col items-center justify-center border-dashed border-2 hover:bg-pink-100">
                 <span class="font-bold text-xs">推广</span>
-                <span class="text-[9px] text-slate-500"><span id="cost-marketing">$1250</span></span>
+                <span class="text-[9px] text-slate-500" id="cost-marketing-wrapper"><span id="cost-marketing">$1250</span></span>
                 <span class="text-[9px] text-pink-500 mt-0.5 font-bold">+10人</span>
             </button>
         </div>
@@ -407,35 +411,26 @@
 <script>
 // ================= 配置数据 =================
 const CITY_CONFIG = {
-    bj: { name: "北京", prices: [0.3, 0.3, 0.3, 0.3, 0.3, 0.3, 0.5, 0.8, 1.2, 1.4, 1.4, 1.2, 0.8, 0.8, 1.2, 1.4, 1.5, 1.5, 1.2, 1.0, 0.8, 0.5, 0.4, 0.3] }, // 峰谷差大
-    sh: { name: "上海", prices: [0.4, 0.4, 0.4, 0.4, 0.4, 0.6, 0.8, 1.0, 1.0, 1.0, 1.2, 1.2, 1.0, 1.0, 1.0, 1.2, 1.2, 1.0, 0.8, 0.8, 0.6, 0.5, 0.4, 0.4] }, // 相对平缓
-    gz: { name: "广州", prices: [0.35,0.35,0.35,0.35,0.35,0.4, 0.7, 1.0, 1.3, 1.3, 1.1, 1.0, 0.9, 0.9, 1.1, 1.3, 1.4, 1.3, 1.1, 0.9, 0.7, 0.5, 0.4, 0.35] } // 午间尖峰
+    bj: { name: "北京", prices: [0.3, 0.3, 0.3, 0.3, 0.3, 0.3, 0.5, 0.8, 1.2, 1.4, 1.4, 1.2, 0.8, 0.8, 1.2, 1.4, 1.5, 1.5, 1.2, 1.0, 0.8, 0.5, 0.4, 0.3] }, 
+    sh: { name: "上海", prices: [0.4, 0.4, 0.4, 0.4, 0.4, 0.6, 0.8, 1.0, 1.0, 1.0, 1.2, 1.2, 1.0, 1.0, 1.0, 1.2, 1.2, 1.0, 0.8, 0.8, 0.6, 0.5, 0.4, 0.4] }, 
+    gz: { name: "广州", prices: [0.35,0.35,0.35,0.35,0.35,0.4, 0.7, 1.0, 1.3, 1.3, 1.1, 1.0, 0.9, 0.9, 1.1, 1.3, 1.4, 1.3, 1.1, 0.9, 0.7, 0.5, 0.4, 0.35] } 
 };
 
 const LOC_CONFIG = {
-    res: { name: "居民区", traffic: [0.4, 0.1, 0.05, 0.05, 0.1, 0.2, 0.3, 0.2, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.2, 0.3, 0.5, 0.8, 0.9, 0.8, 0.7, 0.6, 0.5, 0.5] }, // 晚回家多
-    com: { name: "商业区", traffic: [0.05, 0.05, 0.05, 0.05, 0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.8, 0.9, 0.8, 0.7, 0.6, 0.5, 0.4, 0.3, 0.2, 0.1, 0.1, 0.05, 0.05] }, // 白天多
-    ind: { name: "产业园", traffic: [0.1, 0.1, 0.1, 0.1, 0.2, 0.3, 0.5, 0.8, 0.9, 0.5, 0.4, 0.6, 0.6, 0.4, 0.4, 0.5, 0.8, 0.7, 0.4, 0.2, 0.1, 0.1, 0.1, 0.1] }  // 上下班双峰
-};
-
-const MODE_CONFIG = {
-    std: { name: "标准模式", desc: "正常设置" },
-    super: { name: "超充狂热", desc: "禁止购买慢充" },
-    offgrid: { name: "离网挑战", desc: "电网价格等于售价" },
-    ghost: { name: "鬼城危机", desc: "客流减半" },
-    jam: { name: "春运堵车", desc: "客流无限" }
+    res: { name: "居民区", traffic: [0.4, 0.1, 0.05, 0.05, 0.1, 0.2, 0.3, 0.2, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.2, 0.3, 0.5, 0.8, 0.9, 0.8, 0.7, 0.6, 0.5, 0.5] }, 
+    com: { name: "商业区", traffic: [0.05, 0.05, 0.05, 0.05, 0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.8, 0.9, 0.8, 0.7, 0.6, 0.5, 0.4, 0.3, 0.2, 0.1, 0.1, 0.05, 0.05] }, 
+    ind: { name: "产业园", traffic: [0.1, 0.1, 0.1, 0.1, 0.2, 0.3, 0.5, 0.8, 0.9, 0.5, 0.4, 0.6, 0.6, 0.4, 0.4, 0.5, 0.8, 0.7, 0.4, 0.2, 0.1, 0.1, 0.1, 0.1] } 
 };
 
 const CONFIG = {
     initialMoney: 3000, 
     dailyCost: { slowCharger: 5, fastCharger: 10, solar: 2.5, battery: 2.5, transformer: 2.5 },
-    baseWeeklyRent: 500, // 首周租金从500开始 
+    baseWeeklyRent: 500, 
     rentGrowth: 250, 
-    // 修改处：光伏和储能初始价格降低为 800
     baseCosts: { slowCharger: 800, fastCharger: 1500, solar: 800, battery: 800, transformer: 1250, marketing: 1250 },
-    inflationRate: 1.10, // 10% inflation
+    inflationRate: 1.10, 
     batteryCap: 100, batteryRate: 20, solarMax: 10, 
-    baseLoadLimit: 50, transformerBoost: 10, // Transformer gives 10kW
+    baseLoadLimit: 50, transformerBoost: 10, 
     chargerPower: { slow: 7, fast: 30 },
     baseDailyPool: 20, 
     weather: {
@@ -464,13 +459,13 @@ function getInitialState() {
         lastTickData: { load: 0, solar: 0, batt: 0, grid: 0, limit: CONFIG.baseLoadLimit },
         weeksSurvived: 0,
         nextEventTime: null,
-        activeBuffs: [], // { name, type, val, daysLeft, icon }
+        activeBuffs: [], // { name, type, val, daysLeft, icon, isEventLongTerm }
         timer: null,
         currentDayProfit: 0, lastDayProfit: null,
         pendingRent: 0,
         weather: 'sunny',
         victoryAchieved: false,
-        settings: { city: 'bj', loc: 'res', mode: 'std' } // default
+        settings: { city: 'bj', loc: 'res', mode: 'std' } 
     };
 }
 
@@ -481,7 +476,6 @@ function selectOption(type, val) {
     document.querySelectorAll(`.${type}-card`).forEach(el => el.classList.remove('selected'));
     document.querySelector(`.${type}-card[data-val="${val}"]`).classList.add('selected');
 
-    // Update descriptions
     if (type === 'city') {
         const desc = {
             bj: "峰谷电价差大，适合储能套利。",
@@ -553,9 +547,8 @@ function tick() {
     
     // Grid Price Calculation
     let gridPrice = CITY_CONFIG[state.settings.city].prices[state.hour];
-    if (state.settings.mode === 'offgrid') gridPrice = state.price; // 离网模式：电网价格等于售价
+    if (state.settings.mode === 'offgrid') gridPrice = state.price; 
     
-    // Check Buffs for discounts
     const discountBuff = state.activeBuffs.find(b => b.type === 'gridDiscount');
     if (discountBuff) gridPrice *= discountBuff.val;
 
@@ -564,7 +557,6 @@ function tick() {
     if (state.settings.mode === 'ghost') trafficProb *= 0.5;
     if (state.settings.mode === 'jam') trafficProb = 0.8;
     
-    // Buff traffic modifiers
     const trafficBuff = state.activeBuffs.find(b => b.type === 'trafficMult');
     if (trafficBuff) trafficProb *= trafficBuff.val;
 
@@ -668,25 +660,30 @@ function processEnergy(gridPrice) {
         car.kwhReceived += added;
     });
 
-    // 3. Solar Generation (Logic Update: Surplus goes to Battery)
+    // 3. Solar Generation (Logic Update for High Temp)
     let sunH = (state.hour >= 6 && state.hour <= 18) ? Math.sin((state.hour-6)/12*Math.PI) : 0;
     let weatherEff = CONFIG.weather.eff[state.weather];
     
-    // Check for weather overrides from buffs
     const weatherBuff = state.activeBuffs.find(b => b.type === 'forcedWeather');
     if (weatherBuff) {
-        weatherEff = CONFIG.weather.eff[weatherBuff.val]; // Override efficiency
+        weatherEff = CONFIG.weather.eff[weatherBuff.val]; 
+    }
+    
+    // check for solar efficiency boost (new)
+    const solarBuff = state.activeBuffs.find(b => b.type === 'solarEfficiency');
+    if (solarBuff) {
+        weatherEff *= solarBuff.val; // e.g. 1.0 * 1.2 = 1.2
     }
 
     const solarKwh = state.assets.solar * CONFIG.solarMax * sunH * weatherEff * (0.8+Math.random()*0.4) / 6; 
 
     let remainDemandKwh = actualTotalKwhPerTick;
     
-    // First, use solar for demand
+    // Solar -> Demand
     let usedSolarKwh = Math.min(remainDemandKwh, solarKwh);
     remainDemandKwh -= usedSolarKwh;
     
-    // Surplus Solar -> Battery
+    // Solar Surplus -> Battery
     let surplusSolar = solarKwh - usedSolarKwh;
     const batMaxKwh = state.assets.battery * CONFIG.batteryCap;
     
@@ -696,7 +693,7 @@ function processEnergy(gridPrice) {
         state.batteryKwh += storing;
     }
 
-    // 4. Battery Logic (Discharge or Grid Charge)
+    // 4. Battery Logic
     let usedBattKwh = 0;
     let gridChargeKwh = 0;
     const batRateKwh = (state.assets.battery * CONFIG.batteryRate) / 6; 
@@ -707,7 +704,7 @@ function processEnergy(gridPrice) {
         state.batteryKwh += amt;
         gridChargeKwh = amt;
     } 
-    // Expensive Grid -> Discharge Battery to meet remaining demand
+    // Expensive Grid -> Discharge Battery
     else if (gridPrice > 0.6 && state.batteryKwh > 0 && remainDemandKwh > 0) {
         const amt = Math.min(state.batteryKwh, batRateKwh, remainDemandKwh);
         state.batteryKwh -= amt;
@@ -715,15 +712,12 @@ function processEnergy(gridPrice) {
         usedBattKwh = amt;
     }
 
-    // 5. Remaining Demand -> Grid
+    // 5. Grid Demand
     let usedGridKwh = remainDemandKwh + gridChargeKwh;
 
     // 6. Financials
     let revenue = 0;
-    
-    // Check price sensitivity buff
     let effectivePrice = state.price;
-    // (Logic for price sensitivity handled in spawn, here revenue is just result)
 
     state.cars.forEach(car => {
         const pKw = CONFIG.chargerPower[car.type];
@@ -747,16 +741,14 @@ function processEnergy(gridPrice) {
     if (state.gameSpeed >= 125 && profit !== 0 && state.minute % 20 === 0) {
         const col = profit > 0 ? '#16a34a' : '#ef4444';
         const txt = profit > 0 ? `+${profit.toFixed(2)}` : `${profit.toFixed(2)}`;
-        // Only spawn text occasionally to save perf
         if(Math.random() > 0.7) spawnFloatText(txt, col);
     }
 }
 
-// ================= 事件系统 2.0 =================
+// ================= 事件系统 3.0 (逻辑更新) =================
 
 function scheduleNextEvent() {
-    const currentWeekStart = Math.floor((state.day - 1) / 7) * 7 + 1;
-    // Events happen more frequently now (every 3-5 days)
+    // 3-5 days interval
     const offset = 2 + Math.floor(Math.random() * 4); 
     const hour = 9 + Math.floor(Math.random() * 9); 
     state.nextEventTime = { day: state.day + offset, hour: hour };
@@ -771,31 +763,56 @@ const EVENTS = {
         { t: "环保罚单", d: "电池废液处理不当，环保局找上门。", amt: -500, type: 'money' },
         { t: "彩票中奖", d: "你在休息室捡到的彩票中了二等奖！", amt: 800, type: 'money' }
     ],
+    // Added new periodic events and asset discounts
     longTerm: [
-        { t: "台风过境", d: "台风'皮卡丘'来袭！未来7天持续暴雨，光伏发电基本报废。", type: 'forcedWeather', val: 'rainy', days: 7, icon: '⛈️' },
-        { t: "原材料暴跌", d: "国际铜价崩盘！未来7天所有电网电价打8折。", type: 'gridDiscount', val: 0.8, days: 7, icon: '📉' },
-        { t: "城市马拉松", d: "全城封路跑马拉松。未来7天客流减半。", type: 'trafficMult', val: 0.5, days: 7, icon: '🏃' },
-        { t: "高温预警", d: "由于连日高温，大家都不想出门。但光伏效率爆表（实际上只是晴天）。", type: 'forcedWeather', val: 'sunny', days: 7, icon: '🥵' },
-        { t: "油价暴涨", d: "国际油价起飞，开油车的都哭了。未来7天客流 +50%。", type: 'trafficMult', val: 1.5, days: 7, icon: '⛽' }
+        { t: "台风过境", d: "台风'皮卡丘'来袭！暴雨不断，光伏发电基本报废。", type: 'forcedWeather', val: 'rainy', icon: '⛈️' },
+        { t: "原材料暴跌", d: "国际铜价崩盘！电网电价打8折。", type: 'gridDiscount', val: 0.8, icon: '📉' },
+        { t: "城市马拉松", d: "全城封路跑马拉松。客流减半。", type: 'trafficMult', val: 0.5, icon: '🏃' },
+        { t: "高温预警", d: "连日高温，大家都不想出门。但光伏效率爆表(120%)！", type: 'multiBuff', buffs: [
+            { type: 'forcedWeather', val: 'sunny' },
+            { type: 'solarEfficiency', val: 1.2 }
+        ], icon: '🥵' },
+        { t: "油价暴涨", d: "国际油价起飞，开油车的都哭了。客流 +50%。", type: 'trafficMult', val: 1.5, icon: '⛽' },
+        
+        // New Discount Events
+        { t: "电池技术突破", d: "宁王发布新电池，储能设备采购打7折！", type: 'assetDiscount', target: 'battery', val: 0.7, icon: '🔋' },
+        { t: "光伏产能过剩", d: "组件厂清库存，光伏板采购打7折！", type: 'assetDiscount', target: 'solar', val: 0.7, icon: '📉' },
+        { t: "基建狂魔", d: "工程队大促销，充电桩和变压器安装费8折！", type: 'assetDiscount', target: 'infra', val: 0.8, icon: '🏗️' }
     ]
 };
 
 function triggerRandomEvent() {
-    // 70% chance instant, 30% chance long term
-    const isLongTerm = Math.random() < 0.3;
+    // Check if a long-term event is already active
+    const hasActiveLongTerm = state.activeBuffs.some(b => b.isEventLongTerm);
+
+    // If active long term event exists, FORCE instant event. Otherwise 40% chance for long term.
+    const isLongTerm = !hasActiveLongTerm && Math.random() < 0.4;
+    
     let ev;
+    let duration = 0;
 
     if (isLongTerm) {
         ev = EVENTS.longTerm[Math.floor(Math.random() * EVENTS.longTerm.length)];
-        // Apply buff
-        state.activeBuffs.push({
-            name: ev.t, type: ev.type, val: ev.val, daysLeft: ev.days, icon: ev.icon
-        });
-        document.getElementById('ev-amt').innerText = `持续 ${ev.days} 天`;
+        // Duration varies between 2 to 7 days
+        duration = 2 + Math.floor(Math.random() * 6);
+        
+        if (ev.type === 'multiBuff') {
+            ev.buffs.forEach(subBuff => {
+                state.activeBuffs.push({
+                    name: ev.t, type: subBuff.type, val: subBuff.val, daysLeft: duration, icon: ev.icon, isEventLongTerm: true
+                });
+            });
+        } else {
+            state.activeBuffs.push({
+                name: ev.t, type: ev.type, val: ev.val, daysLeft: duration, icon: ev.icon, isEventLongTerm: true,
+                target: ev.target // for asset discounts
+            });
+        }
+        
+        document.getElementById('ev-amt').innerText = `持续 ${duration} 天`;
         document.getElementById('ev-amt').className = "font-bold text-blue-600";
     } else {
         ev = EVENTS.instant[Math.floor(Math.random() * EVENTS.instant.length)];
-        // Scale amount by progress
         let amount = ev.amt + (state.day * 5); 
         state.money += amount;
         document.getElementById('ev-amt').innerText = (amount > 0 ? "+" : "") + `$${Math.abs(amount)}`;
@@ -807,7 +824,10 @@ function triggerRandomEvent() {
     document.getElementById('ev-desc').innerText = ev.d;
     document.getElementById('event-modal').classList.remove('hidden');
 
-    scheduleNextEvent(); // Schedule next one
+    scheduleNextEvent();
+    
+    // Force UI update to show discounts immediately if paused
+    updateUI(); 
 }
 
 function dailySettle() {
@@ -870,7 +890,6 @@ function calcDailyCost() {
 }
 
 function calcWeeklyRent() {
-    // 修改处：offgrid模式下，租金增长幅度减半 (125)
     let growth = CONFIG.rentGrowth;
     if (state.settings.mode === 'offgrid') {
         growth = 125;
@@ -963,8 +982,25 @@ function findFreeSlot(type) {
     return -1;
 }
 
+// Updated Helper to calculate asset cost with discounts
+function getAssetCost(type) {
+    let cost = state.currentCosts[type];
+    
+    // Check for specific discounts
+    const discount = state.activeBuffs.find(b => b.type === 'assetDiscount' && b.target === type);
+    if (discount) cost *= discount.val;
+    
+    // Check for infra discount (applies to slowCharger, fastCharger, transformer)
+    if (['slowCharger', 'fastCharger', 'transformer'].includes(type)) {
+        const infraDiscount = state.activeBuffs.find(b => b.type === 'assetDiscount' && b.target === 'infra');
+        if (infraDiscount) cost *= infraDiscount.val;
+    }
+
+    return Math.floor(cost);
+}
+
 function buyAsset(type) {
-    const cost = state.currentCosts[type];
+    const cost = getAssetCost(type);
     
     if (type === 'slowCharger' && state.settings.mode === 'super') {
         spawnFloatText("模式限制: 禁止慢充", "#ef4444");
@@ -982,7 +1018,7 @@ function buyAsset(type) {
             spawnFloatText(`购买 -$${cost}`, "#2563eb");
         }
         
-        // Inflation: 10%
+        // Inflation: 10% (Applied to BASE cost stored in state, not discounted cost)
         state.currentCosts[type] = Math.floor(state.currentCosts[type] * CONFIG.inflationRate);
         
         updateUI();
@@ -1034,16 +1070,24 @@ function updateUI() {
 
     const w = state.weather;
     document.getElementById('ui-weather-icon').innerText = CONFIG.weather.icons[w];
-    const eff = CONFIG.weather.eff[w] * 100;
+    let eff = CONFIG.weather.eff[w] * 100;
     
     // Check if weather is forced by buff
     const forced = state.activeBuffs.find(b => b.type === 'forcedWeather');
-    document.getElementById('ui-weather-eff').innerText = `PV:${eff}%${forced ? '(锁定)' : ''}`;
-    document.getElementById('ui-weather-eff').className = w === 'rainy' ? 'text-[8px] font-bold text-red-500' : 'text-[8px] font-bold text-slate-500';
+    // Check if solar is boosted
+    const boosted = state.activeBuffs.find(b => b.type === 'solarEfficiency');
+    
+    if (boosted) eff *= boosted.val;
+
+    document.getElementById('ui-weather-eff').innerText = `PV:${eff.toFixed(0)}%${forced ? '(锁定)' : ''}`;
+    let effColor = 'text-slate-500';
+    if(w === 'rainy') effColor = 'text-red-500';
+    if(boosted) effColor = 'text-green-600 font-black'; // Green if boosted
+    document.getElementById('ui-weather-eff').className = `text-[8px] font-bold ${effColor}`;
 
     // Grid Price
     let gp = CITY_CONFIG[state.settings.city].prices[state.hour];
-    if (state.settings.mode === 'offgrid') gp = state.price; // 离网模式：电网价格等于售价
+    if (state.settings.mode === 'offgrid') gp = state.price; 
     const discountBuff = state.activeBuffs.find(b => b.type === 'gridDiscount');
     if (discountBuff) gp *= discountBuff.val;
 
@@ -1079,18 +1123,41 @@ function updateUI() {
     document.getElementById('count-battery').innerText = state.assets.battery;
     document.getElementById('count-transformer').innerText = state.assets.transformer;
     
-    document.getElementById('cost-slow').innerText = `$${state.currentCosts.slowCharger}`;
-    document.getElementById('cost-fast').innerText = `$${state.currentCosts.fastCharger}`;
-    document.getElementById('cost-transformer').innerText = `$${state.currentCosts.transformer}`;
-    document.getElementById('cost-solar').innerText = `$${state.currentCosts.solar}`;
-    document.getElementById('cost-battery').innerText = `$${state.currentCosts.battery}`;
-    document.getElementById('cost-marketing').innerText = `$${state.currentCosts.marketing}`;
+    // Dynamic Costs Display
+    const updateCostDisplay = (type, elId, label) => {
+        const raw = state.currentCosts[type];
+        const actual = getAssetCost(type);
+        const el = document.getElementById(elId);
+        if (actual < raw) {
+            el.innerHTML = `<span class="original-price">$${raw}</span> <span class="discount-price">$${actual}</span>`;
+        } else {
+            el.innerText = `$${raw}`;
+        }
+    };
+
+    updateCostDisplay('slowCharger', 'cost-slow', '慢充');
+    updateCostDisplay('fastCharger', 'cost-fast', '快充');
+    updateCostDisplay('transformer', 'cost-transformer', '配电');
+    updateCostDisplay('solar', 'cost-solar', '光伏');
+    updateCostDisplay('battery', 'cost-battery', '储能');
+    updateCostDisplay('marketing', 'cost-marketing', '推广');
 
     // Render Buffs
     const buffBar = document.getElementById('ui-buff-bar');
     if (state.activeBuffs.length > 0) {
         buffBar.classList.remove('hidden');
-        buffBar.innerHTML = state.activeBuffs.map(b => `
+        // Deduplicate buffs for display (High Temp creates 2 buffs, we only want to show 1 icon generally, but showing all is fine for now)
+        // Let's filter to show unique names
+        const uniqueBuffs = [];
+        const seen = new Set();
+        state.activeBuffs.forEach(b => {
+            if(!seen.has(b.name)) {
+                uniqueBuffs.push(b);
+                seen.add(b.name);
+            }
+        });
+
+        buffBar.innerHTML = uniqueBuffs.map(b => `
             <div class="flex items-center gap-1 bg-indigo-50 border border-indigo-200 px-2 py-0.5 rounded-full shrink-0">
                 <span class="text-xs">${b.icon}</span>
                 <span class="text-[9px] font-bold text-indigo-700">${b.name} ${b.daysLeft}d</span>
@@ -1177,8 +1244,20 @@ function draw() {
     } else {
         ctx.beginPath();
         ctx.arc(celestialX, celestialY, 30, 0, Math.PI * 2);
-        ctx.fillStyle = (h>=6 && h<=18) ? '#fcd34d' : '#cbd5e1'; 
+        
+        // High temp visual check
+        const isHot = state.activeBuffs.some(b => b.type === 'solarEfficiency');
+        ctx.fillStyle = (h>=6 && h<=18) ? (isHot ? '#f59e0b' : '#fcd34d') : '#cbd5e1'; 
         ctx.fill();
+        
+        // Sun rays if hot
+        if ((h>=6 && h<=18) && isHot) {
+            ctx.strokeStyle = 'rgba(245, 158, 11, 0.4)';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(celestialX, celestialY, 38 + Math.sin(Date.now()/500)*5, 0, Math.PI*2);
+            ctx.stroke();
+        }
     }
 
     drawHub(20, 50); 
@@ -1211,14 +1290,29 @@ function drawHub(x, y) {
     const eff = (state.hour >= 6 && state.hour <= 18) ? Math.sin((state.hour-6)/12*Math.PI) : 0;
     let weatherEff = CONFIG.weather.eff[state.weather];
     const forced = state.activeBuffs.find(b => b.type === 'forcedWeather');
+    const boosted = state.activeBuffs.find(b => b.type === 'solarEfficiency');
+    
     if(forced) weatherEff = CONFIG.weather.eff[forced.val];
+    if(boosted) weatherEff *= boosted.val;
     
     ctx.fillStyle = '#eab308'; 
     ctx.fillText(`光伏 ${state.assets.solar}`, x+10, y+35);
     ctx.fillStyle = '#fef08a'; ctx.fillRect(x+10, y+40, 60, 5);
     
-    ctx.fillStyle = state.weather === 'rainy' ? '#94a3b8' : '#eab308'; 
-    ctx.fillRect(x+10, y+40, 60 * eff * weatherEff, 5);
+    // Solar Bar color logic
+    if (state.weather === 'rainy') ctx.fillStyle = '#94a3b8';
+    else if (boosted) ctx.fillStyle = '#ea580c'; // Orange if hot
+    else ctx.fillStyle = '#eab308'; // Standard yellow
+
+    // Draw solar bar with potential overflow for >100%
+    const barWidth = 60 * eff * weatherEff;
+    ctx.fillRect(x+10, y+40, Math.min(60, barWidth), 5);
+    
+    // Draw "extra" efficiency indicator if > 100%
+    if (barWidth > 60) {
+         ctx.fillStyle = '#ef4444'; 
+         ctx.fillRect(x+70, y+38, 4, 9); // Little marker
+    }
 
     const max = state.assets.battery * CONFIG.batteryCap;
     const pct = max > 0 ? state.batteryKwh/max : 0;
