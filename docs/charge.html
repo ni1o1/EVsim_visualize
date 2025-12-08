@@ -333,7 +333,7 @@
                     <div onclick="selectOption('mode', 'offgrid')" class="option-card mode-card border rounded-lg p-3 cursor-pointer flex justify-between items-center" data-val="offgrid">
                         <div>
                             <span class="block text-sm font-bold text-slate-800">离网挑战</span>
-                            <span class="text-[10px] text-slate-400">电网价格等于售价，租金涨幅减半</span>
+                            <span class="text-[10px] text-slate-400">电网价格等于售价，初始租金$500</span>
                         </div>
                         <span class="text-lg">🔋</span>
                     </div>
@@ -350,6 +350,13 @@
                             <span class="text-[10px] text-slate-400">无限客流，考验吞吐极限</span>
                         </div>
                         <span class="text-lg">🚦</span>
+                    </div>
+                    <div onclick="selectOption('mode', 'luxury')" class="option-card mode-card border rounded-lg p-3 cursor-pointer flex justify-between items-center" data-val="luxury">
+                        <div>
+                            <span class="block text-sm font-bold text-slate-800">豪华地段</span>
+                            <span class="text-[10px] text-slate-400">黄金地段租金昂贵，起始$1500</span>
+                        </div>
+                        <span class="text-lg">💎</span>
                     </div>
                 </div>
             </div>
@@ -434,7 +441,7 @@ const LOC_CONFIG = {
 const CONFIG = {
     initialMoney: 3000, 
     dailyCost: { slowCharger: 5, fastCharger: 10, solar: 2.5, battery: 2.5, transformer: 2.5 },
-    baseWeeklyRent: 500, 
+    baseWeeklyRent: 1000, // 修改为1000
     rentGrowth: 250, 
     baseCosts: { slowCharger: 800, fastCharger: 1500, solar: 800, battery: 800, transformer: 1250, marketing: 1250 },
     inflationRate: 1.10, 
@@ -515,6 +522,10 @@ function startGame() {
     } else if (state.settings.mode === 'ghost') {
         state.dailyPoolMax = 10;
         state.dailyPoolLeft = 10;
+    } else if (state.settings.mode === 'luxury') {
+        // 豪华地段模式：客流更稳定，客户支付意愿更高
+        state.dailyPoolMax = 25; // 比标准模式稍高
+        state.dailyPoolLeft = 25;
     }
 
     if (state.settings.mode === 'super') {
@@ -561,11 +572,18 @@ function tick() {
     
     const discountBuff = state.activeBuffs.find(b => b.type === 'gridDiscount');
     if (discountBuff) gridPrice *= discountBuff.val;
+    
+    // Check Grid Price Multiplier
+    const gridPriceMultBuff = state.activeBuffs.find(b => b.type === 'gridPriceMult');
+    if (gridPriceMultBuff) {
+        gridPrice *= gridPriceMultBuff.val;
+    }
 
     // Traffic Calculation
     let trafficProb = LOC_CONFIG[state.settings.loc].traffic[state.hour];
-    if (state.settings.mode === 'ghost') trafficProb *= 0.5;
-    if (state.settings.mode === 'jam') trafficProb = 0.8;
+    trafficProb *= 0.05; // 全局客流系数，可手动调整
+    if (state.settings.mode === 'ghost') trafficProb *= 0.025;
+    if (state.settings.mode === 'jam') trafficProb = 0.1;
     
     const trafficBuff = state.activeBuffs.find(b => b.type === 'trafficMult');
     if (trafficBuff) trafficProb *= trafficBuff.val;
@@ -661,9 +679,16 @@ function processEnergy(gridPrice) {
     const actualTotalKw = totalRequestedKw * throttle;
     const actualTotalKwhPerTick = actualTotalKw / 6; 
 
+    // Check Charge Speed Boost
+    const chargeSpeedBuff = state.activeBuffs.find(b => b.type === 'chargeSpeedMult');
+    let chargeSpeedMult = 1.0;
+    if (chargeSpeedBuff) {
+        chargeSpeedMult = chargeSpeedBuff.val;
+    }
+
     // 2. Distribute power to cars
     state.cars.forEach(car => {
-        const pKw = CONFIG.chargerPower[car.type];
+        const pKw = CONFIG.chargerPower[car.type] * chargeSpeedMult;
         const pKwh = (pKw * throttle) / 6;
         const need = car.kwhNeeded - car.kwhReceived;
         const added = Math.min(pKwh, need);
@@ -709,15 +734,22 @@ function processEnergy(gridPrice) {
     let gridChargeKwh = 0;
     const batRateKwh = (state.assets.battery * CONFIG.batteryRate) / 6; 
 
+    // Check Battery Efficiency Boost
+    const batteryEffBuff = state.activeBuffs.find(b => b.type === 'batteryEfficiency');
+    let batteryEffMult = 1.0;
+    if (batteryEffBuff) {
+        batteryEffMult = batteryEffBuff.val;
+    }
+
     // Cheap Grid -> Charge Battery
     if (gridPrice <= 0.5 && state.batteryKwh < batMaxKwh) {
-        const amt = Math.min(batMaxKwh - state.batteryKwh, batRateKwh);
+        const amt = Math.min(batMaxKwh - state.batteryKwh, batRateKwh * batteryEffMult);
         state.batteryKwh += amt;
         gridChargeKwh = amt;
     } 
     // Expensive Grid -> Discharge Battery
     else if (gridPrice > 0.6 && state.batteryKwh > 0 && remainDemandKwh > 0) {
-        const amt = Math.min(state.batteryKwh, batRateKwh, remainDemandKwh);
+        const amt = Math.min(state.batteryKwh, batRateKwh * batteryEffMult, remainDemandKwh);
         state.batteryKwh -= amt;
         remainDemandKwh -= amt;
         usedBattKwh = amt;
@@ -768,9 +800,23 @@ const EVENTS = {
         { t: "政府补贴", d: "新能源基建补助到账。", amt: 500, type: 'money' },
         { t: "设备过热", d: "几个模块烧坏了，需紧急维修。", amt: -300, type: 'money' },
         { t: "网红打卡", d: "某车评人来这充电，瞬间引流。", amt: 400, type: 'money' },
-        { t: "偷电贼", d: "有人私接电线烤红薯被抓，罚款。", amt: 150, type: 'money' },
+        { t: "偷电贼", d: "有人私接电线偷电被抓，罚款。", amt: -150, type: 'money' },
         { t: "环保罚单", d: "电池废液处理不当，环保局找上门。", amt: -500, type: 'money' },
-        { t: "彩票中奖", d: "你在休息室捡到的彩票中了二等奖！", amt: 800, type: 'money' }
+        { t: "彩票中奖", d: "你在休息室捡到的彩票中了二等奖！", amt: 800, type: 'money' },
+        { t: "设备老化", d: "部分设备老化严重，需要更换零件。", amt: -250, type: 'money' },
+        { t: "客户打赏", d: "土豪车主觉得你服务不错，给了小费。", amt: 100, type: 'money' },
+        { t: "保险理赔", d: "上次雷击损坏的设备，保险公司赔付了。", amt: 600, type: 'money' },
+        { t: "员工培训", d: "组织员工参加专业培训，提升服务质量。", amt: -200, type: 'money' },
+        { t: "银行利息", d: "账户余额产生的利息到账。", amt: 150, type: 'money' },
+        { t: "设备被盗", d: "有人夜间偷走了部分充电设备。", amt: -400, type: 'money' },
+        { t: "政府奖励", d: "被评为绿色能源示范站点，获得奖励。", amt: 700, type: 'money' },
+        { t: "维修事故", d: "维修过程中发生意外，需要额外赔偿。", amt: -350, type: 'money' },
+        { t: "广告收入", d: "在充电桩上投放广告获得收入。", amt: 300, type: 'money' },
+        { t: "税务抽查", d: "税务部门抽查发现漏税问题，补缴税款。", amt: -450, type: 'money' },
+        { t: "节能补贴", d: "使用节能设备获得额外补贴。", amt: 250, type: 'money' },
+        { t: "客户投诉", d: "服务态度问题导致客户投诉，赔偿损失。", amt: -180, type: 'money' },
+        { t: "技术升级", d: "系统技术升级，提升充电效率。", amt: -320, type: 'money' },
+        { t: "合作推广", d: "与附近商家合作推广，获得推广费。", amt: 350, type: 'money' }
     ],
     longTerm: [
         { t: "台风过境", d: "台风'皮卡丘'来袭！暴雨不断，光伏发电基本报废。", type: 'forcedWeather', val: 'rainy', icon: '⛈️' },
@@ -784,7 +830,41 @@ const EVENTS = {
         
         { t: "电池技术突破", d: "宁王发布新电池，储能设备采购打7折！", type: 'assetDiscount', target: 'battery', val: 0.7, icon: '🔋' },
         { t: "光伏产能过剩", d: "组件厂清库存，光伏板采购打7折！", type: 'assetDiscount', target: 'solar', val: 0.7, icon: '📉' },
-        { t: "基建狂魔", d: "工程队大促销，充电桩和变压器安装费8折！", type: 'assetDiscount', target: 'infra', val: 0.8, icon: '🏗️' }
+        { t: "基建狂魔", d: "工程队大促销，充电桩和变压器安装费8折！", type: 'assetDiscount', target: 'infra', val: 0.8, icon: '🏗️' },
+        
+        { t: "极寒天气", d: "寒潮来袭！电池效率下降30%，但电网需求激增电价上涨。", type: 'multiBuff', buffs: [
+            { type: 'batteryEfficiency', val: 0.7 },
+            { type: 'gridPriceMult', val: 1.4 }
+        ], icon: '❄️' },
+        { t: "充电联盟", d: "加入城市充电联盟，客流增加但需支付联盟费用。", type: 'multiBuff', buffs: [
+            { type: 'trafficMult', val: 1.4 },
+            { type: 'dailyCostMult', val: 1.2 }
+        ], icon: '🤝' },
+        { t: "技术革新", d: "新技术让充电速度提升20%，但设备维护成本增加。", type: 'multiBuff', buffs: [
+            { type: 'chargeSpeedMult', val: 1.2 },
+            { type: 'dailyCostMult', val: 1.15 }
+        ], icon: '⚡' },
+        { t: "政策补贴", d: "政府推出新能源补贴政策，电价打7折。", type: 'gridDiscount', val: 0.7, icon: '🏛️' },
+        { t: "用电高峰", d: "夏季用电高峰期，电网价格飙升50%。", type: 'gridPriceMult', val: 1.5, icon: '📈' },
+        { t: "设备升级", d: "智能化升级完成，设备效率提升但维护成本增加。", type: 'multiBuff', buffs: [
+            { type: 'solarEfficiency', val: 1.3 },
+            { type: 'batteryEfficiency', val: 1.2 },
+            { type: 'dailyCostMult', val: 1.25 }
+        ], icon: '🤖' },
+        { t: "市场竞争", d: "附近新开充电站，客流减少25%。", type: 'trafficMult', val: 0.75, icon: '⚔️' },
+        { t: "能源危机", d: "国际能源危机，所有能源价格上涨。", type: 'multiBuff', buffs: [
+            { type: 'gridPriceMult', val: 1.6 },
+            { type: 'dailyCostMult', val: 1.3 }
+        ], icon: '🛢️' },
+        { t: "绿色认证", d: "获得环保认证，设备采购享受折扣。", type: 'assetDiscount', target: 'all', val: 0.85, icon: '🌱' },
+        { t: "智能化浪潮", d: "AI技术普及，智能化设备成本大幅下降。", type: 'assetDiscount', target: 'infra', val: 0.6, icon: '🧠' },
+        { t: "经济衰退", d: "经济不景气，客流减少但运营成本下降。", type: 'multiBuff', buffs: [
+            { type: 'trafficMult', val: 0.7 },
+            { type: 'dailyCostMult', val: 0.8 }
+        ], icon: '📉' },
+        { t: "充电热潮", d: "电动车销量暴增，客流增加40%。", type: 'trafficMult', val: 1.4, icon: '🚗' },
+        { t: "维护困难", d: "专业技术人员短缺，维护成本大幅上升。", type: 'dailyCostMult', val: 1.5, icon: '🔧' },
+        { t: "创新补贴", d: "创新技术获得政府补贴，研发成本降低。", type: 'assetDiscount', target: 'battery', val: 0.5, icon: '💡' }
     ]
 };
 
@@ -895,15 +975,33 @@ function calcDailyCost() {
     cost += state.assets.solar * CONFIG.dailyCost.solar;
     cost += state.assets.battery * CONFIG.dailyCost.battery;
     cost += state.assets.transformer * CONFIG.dailyCost.transformer;
+    
+    // Check Daily Cost Multiplier
+    const dailyCostMultBuff = state.activeBuffs.find(b => b.type === 'dailyCostMult');
+    if (dailyCostMultBuff) {
+        cost *= dailyCostMultBuff.val;
+    }
+    
     return cost;
 }
 
 function calcWeeklyRent() {
+    let base = CONFIG.baseWeeklyRent; // Default 1000
     let growth = CONFIG.rentGrowth;
+    
+    // 离网挑战模式：租金起步低(500)，涨幅也低
     if (state.settings.mode === 'offgrid') {
+        base = 500;
         growth = 125;
     }
-    return CONFIG.baseWeeklyRent + (state.weeksSurvived * growth);
+    
+    // 豪华地段模式：租金起步高(1500)，涨幅更高
+    if (state.settings.mode === 'luxury') {
+        base = 1500;
+        growth = 350; // 比标准模式的250更高
+    }
+    
+    return base + (state.weeksSurvived * growth);
 }
 
 function trySpawnCar(baseProb) {
@@ -937,6 +1035,11 @@ function attemptSingleSpawn(baseProb) {
             const t = (myPrice - 1.2) / 0.8; 
             acceptChance = 1.0 - (t * 0.7); 
         }
+    }
+    
+    // 豪华地段模式：客户支付意愿更高
+    if (state.settings.mode === 'luxury') {
+        acceptChance = Math.min(1.0, acceptChance * 1.3); // 提高30%接受度
     }
 
     if (Math.random() > acceptChance) return; 
@@ -1476,4 +1579,3 @@ function setSpeed(ms) {
 </script>
 </body>
 </html>
-
