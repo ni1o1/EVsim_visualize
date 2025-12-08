@@ -263,7 +263,7 @@
                 <span class="text-[9px] bg-purple-200 px-2 rounded-full mt-0.5 font-bold" id="count-fast">0</span>
             </button>
             <button onclick="buyAsset('transformer')" class="btn bg-gray-100 border-gray-300 text-slate-700 rounded-lg h-14 flex flex-col items-center justify-center border-dashed border-2 border-slate-400 hover:bg-gray-200">
-                <span class="font-bold text-xs">配电 (+10kW)</span>
+                <span class="font-bold text-xs">配电 (+20kW)</span>
                 <span class="text-[9px] text-slate-500" id="cost-transformer-wrapper"><span id="cost-transformer">$1250</span> | 日$2.5</span>
                 <span class="text-[9px] bg-gray-300 px-2 rounded-full mt-0.5 font-bold" id="count-transformer">0</span>
             </button>
@@ -446,7 +446,7 @@ const CONFIG = {
     baseCosts: { slowCharger: 800, fastCharger: 1500, solar: 800, battery: 800, transformer: 1250, marketing: 1250 },
     inflationRate: 1.10, 
     batteryCap: 100, batteryRate: 20, solarMax: 10, 
-    baseLoadLimit: 50, transformerBoost: 10, 
+    baseLoadLimit: 20, transformerBoost: 20, 
     chargerPower: { slow: 7, fast: 30 },
     baseDailyPool: 20, 
     weather: {
@@ -581,9 +581,9 @@ function tick() {
 
     // Traffic Calculation
     let trafficProb = LOC_CONFIG[state.settings.loc].traffic[state.hour];
-    trafficProb *= 0.3; // 全局客流系数，可手动调整
-    if (state.settings.mode === 'ghost') trafficProb *= 0.1;
-    if (state.settings.mode === 'jam') trafficProb = 0.6;
+    trafficProb *= 0.15; // 全局客流系数，可手动调整
+    if (state.settings.mode === 'ghost') trafficProb *= 0.05;
+    if (state.settings.mode === 'jam') trafficProb = 0.3;
     
     const trafficBuff = state.activeBuffs.find(b => b.type === 'trafficMult');
     if (trafficBuff) trafficProb *= trafficBuff.val;
