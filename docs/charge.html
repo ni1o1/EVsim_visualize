@@ -581,9 +581,9 @@ function tick() {
 
     // Traffic Calculation
     let trafficProb = LOC_CONFIG[state.settings.loc].traffic[state.hour];
-    trafficProb *= 0.05; // 全局客流系数，可手动调整
-    if (state.settings.mode === 'ghost') trafficProb *= 0.025;
-    if (state.settings.mode === 'jam') trafficProb = 0.1;
+    trafficProb *= 0.3; // 全局客流系数，可手动调整
+    if (state.settings.mode === 'ghost') trafficProb *= 0.1;
+    if (state.settings.mode === 'jam') trafficProb = 0.6;
     
     const trafficBuff = state.activeBuffs.find(b => b.type === 'trafficMult');
     if (trafficBuff) trafficProb *= trafficBuff.val;
