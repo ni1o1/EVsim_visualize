@@ -256,12 +256,12 @@
             </button>
             <button onclick="buyAsset('solar')" class="btn bg-yellow-50 border border-yellow-200 text-yellow-800 rounded-lg h-14 flex flex-col items-center justify-center hover:bg-yellow-100">
                 <span class="font-bold text-xs">光伏 (10kW)</span>
-                <span class="text-[9px] text-slate-500"><span id="cost-solar">$1000</span> | 日$2.5</span>
+                <span class="text-[9px] text-slate-500"><span id="cost-solar">$800</span> | 日$2.5</span>
                 <span class="text-[9px] bg-yellow-200 px-2 rounded-full mt-0.5 font-bold" id="count-solar">0</span>
             </button>
             <button onclick="buyAsset('battery')" class="btn bg-green-50 border border-green-200 text-green-800 rounded-lg h-14 flex flex-col items-center justify-center hover:bg-green-100">
                 <span class="font-bold text-xs">储能 (100kWh)</span>
-                <span class="text-[9px] text-slate-500"><span id="cost-battery">$1000</span> | 日$2.5</span>
+                <span class="text-[9px] text-slate-500"><span id="cost-battery">$800</span> | 日$2.5</span>
                 <span class="text-[9px] bg-green-200 px-2 rounded-full mt-0.5 font-bold" id="count-battery">0</span>
             </button>
             <button onclick="buyAsset('marketing')" class="btn bg-pink-50 border border-pink-200 text-pink-800 rounded-lg h-14 flex flex-col items-center justify-center border-dashed border-2 hover:bg-pink-100">
@@ -320,7 +320,7 @@
                     <div onclick="selectOption('mode', 'offgrid')" class="option-card mode-card border rounded-lg p-3 cursor-pointer flex justify-between items-center" data-val="offgrid">
                         <div>
                             <span class="block text-sm font-bold text-slate-800">离网挑战</span>
-                            <span class="text-[10px] text-slate-400">电网价格等于售价，必须依赖光储充</span>
+                            <span class="text-[10px] text-slate-400">电网价格等于售价，租金涨幅减半</span>
                         </div>
                         <span class="text-lg">🔋</span>
                     </div>
@@ -431,7 +431,8 @@ const CONFIG = {
     dailyCost: { slowCharger: 5, fastCharger: 10, solar: 2.5, battery: 2.5, transformer: 2.5 },
     baseWeeklyRent: 500, // 首周租金从500开始 
     rentGrowth: 250, 
-    baseCosts: { slowCharger: 800, fastCharger: 1500, solar: 1000, battery: 1000, transformer: 1250, marketing: 1250 },
+    // 修改处：光伏和储能初始价格降低为 800
+    baseCosts: { slowCharger: 800, fastCharger: 1500, solar: 800, battery: 800, transformer: 1250, marketing: 1250 },
     inflationRate: 1.10, // 10% inflation
     batteryCap: 100, batteryRate: 20, solarMax: 10, 
     baseLoadLimit: 50, transformerBoost: 10, // Transformer gives 10kW
@@ -869,7 +870,12 @@ function calcDailyCost() {
 }
 
 function calcWeeklyRent() {
-    return CONFIG.baseWeeklyRent + (state.weeksSurvived * CONFIG.rentGrowth);
+    // 修改处：offgrid模式下，租金增长幅度减半 (125)
+    let growth = CONFIG.rentGrowth;
+    if (state.settings.mode === 'offgrid') {
+        growth = 125;
+    }
+    return CONFIG.baseWeeklyRent + (state.weeksSurvived * growth);
 }
 
 function trySpawnCar(baseProb) {
