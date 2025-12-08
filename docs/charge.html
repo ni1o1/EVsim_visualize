@@ -123,7 +123,6 @@
             color: #1e40af;
         }
 
-        /* 价格打折时的删除线样式 */
         .original-price {
             text-decoration: line-through;
             color: #94a3b8;
@@ -139,43 +138,53 @@
 <body>
 
     <div class="scrollable-content">
-        <!-- 顶部数据栏 -->
-        <div class="grid grid-cols-3 gap-2 shrink-0">
-            <div class="stat-card border-t-4 border-green-500">
+        <!-- 布局更新：第一行 -->
+        <div class="flex gap-2 shrink-0">
+            <!-- 资金卡片 (1/3) -->
+            <div class="w-1/3 stat-card border-t-4 border-green-500">
                 <div class="text-[10px] text-gray-400 font-bold uppercase">资金</div>
                 <div class="text-base font-mono text-green-700 font-bold leading-none mb-0.5" id="ui-money">$3000.00</div>
                 <div class="text-[9px] text-gray-400 font-medium" id="ui-last-profit">昨日: --</div>
             </div>
-            <div class="stat-card border-t-4 border-blue-500">
-                <div class="flex justify-between w-full px-2 items-center">
-                    <div class="text-xl font-mono leading-none text-slate-800 font-bold" id="ui-clock">08:00</div>
-                    <!-- 天气显示 -->
-                    <div class="flex flex-col items-end">
-                        <span class="text-lg leading-none" id="ui-weather-icon">☀️</span>
-                        <span class="text-[8px] font-bold text-slate-500" id="ui-weather-eff">100%</span>
+            
+            <!-- 日期和天气卡片 (2/3) -->
+            <div class="w-2/3 stat-card border-t-4 border-blue-500 flex flex-row justify-between items-center px-4">
+                <!-- 左侧：时钟和天数 -->
+                <div class="flex flex-col items-start">
+                    <div class="text-2xl font-mono leading-none text-slate-800 font-bold mb-1" id="ui-clock">08:00</div>
+                    <div class="flex items-center gap-2">
+                        <span class="text-[10px] bg-slate-100 px-1.5 py-0.5 rounded text-slate-600 font-bold" id="ui-day">D1</span>
+                        <span class="text-[9px] text-slate-400 font-bold uppercase tracking-wider" id="ui-speed-label">PAUSED</span>
                     </div>
                 </div>
-                <div class="flex justify-center items-center gap-1 w-full mt-1">
-                    <span class="text-[10px] bg-slate-100 px-1 rounded text-slate-500" id="ui-day">D1</span>
-                    <span class="text-[10px] text-slate-400 font-bold" id="ui-speed-label">PAUSED</span>
+                <!-- 右侧：天气和预报 -->
+                <div class="flex items-center gap-2">
+                     <span class="text-3xl leading-none" id="ui-weather-icon">☀️</span>
+                     <div class="flex flex-col items-end min-w-[36px]">
+                        <span class="text-[9px] font-bold text-slate-500 whitespace-nowrap" id="ui-weather-eff">100%</span>
+                        <span class="text-[9px] text-slate-400 whitespace-nowrap mt-0.5 border-t border-slate-200 pt-0.5 font-medium" id="ui-forecast">明:☀️</span>
+                    </div>
                 </div>
-            </div>
-            <div class="stat-card border-t-4 border-purple-500">
-                <span class="text-[10px] text-gray-400 font-bold uppercase">今日客流</span>
-                <div class="text-lg font-bold text-purple-600 leading-tight" id="ui-pool">20/20</div>
             </div>
         </div>
 
-        <!-- 财务次级栏 -->
-        <div class="grid grid-cols-2 gap-2 shrink-0">
-            <div class="stat-card border-l-4 border-orange-400 bg-orange-50/30 items-start px-3 py-1 flex-row justify-between">
-                <span class="text-[10px] text-orange-400 font-bold">日运营费</span>
+        <!-- 布局更新：第二行 (客流 + 两个钱，各1/3) -->
+        <div class="grid grid-cols-3 gap-2 shrink-0">
+            <!-- 客流 -->
+            <div class="stat-card border-t-4 border-purple-500">
+                <span class="text-[10px] text-gray-400 font-bold uppercase">今日客流</span>
+                <div class="text-base font-bold text-purple-600 leading-tight" id="ui-pool">20/20</div>
+            </div>
+            <!-- 日运营费 -->
+            <div class="stat-card border-t-4 border-orange-400">
+                <span class="text-[10px] text-gray-400 font-bold uppercase">日成本</span>
                 <span class="text-sm font-bold text-orange-600 font-mono" id="ui-daily-cost">-$7.50</span>
             </div>
-            <div class="stat-card border-l-4 border-red-500 bg-red-50/30 items-start px-3 py-1 flex-row justify-between">
-                <div class="flex flex-col items-start">
-                    <span class="text-[10px] text-red-400 font-bold">周租金预估</span>
-                    <span class="text-[9px] bg-red-100 text-red-500 px-1.5 rounded-full mt-0.5" id="ui-rent-countdown">6天</span>
+            <!-- 周租金 -->
+            <div class="stat-card border-t-4 border-red-500">
+                <div class="flex items-center gap-1">
+                    <span class="text-[10px] text-gray-400 font-bold uppercase">周租金</span>
+                    <span class="text-[8px] bg-red-100 text-red-500 px-1 rounded-full" id="ui-rent-countdown">6天</span>
                 </div>
                 <span class="text-sm font-bold text-red-600 font-mono" id="ui-weekly-rent">-$500</span>
             </div>
@@ -463,7 +472,8 @@ function getInitialState() {
         timer: null,
         currentDayProfit: 0, lastDayProfit: null,
         pendingRent: 0,
-        weather: 'sunny',
+        weather: rollWeather(), // Initial Weather
+        forecast: rollWeather(), // Initial Forecast for next day
         victoryAchieved: false,
         settings: { city: 'bj', loc: 'res', mode: 'std' } 
     };
@@ -630,7 +640,7 @@ function showGameOver(victory) {
     document.getElementById('game-over-modal').classList.remove('hidden');
 }
 
-// ================= 能源逻辑 (关键修改) =================
+// ================= 能源逻辑 =================
 
 function processEnergy(gridPrice) {
     // 1. Calculate Demand
@@ -660,19 +670,20 @@ function processEnergy(gridPrice) {
         car.kwhReceived += added;
     });
 
-    // 3. Solar Generation (Logic Update for High Temp)
+    // 3. Solar Generation
     let sunH = (state.hour >= 6 && state.hour <= 18) ? Math.sin((state.hour-6)/12*Math.PI) : 0;
     let weatherEff = CONFIG.weather.eff[state.weather];
     
+    // Check Buffs for weather override
     const weatherBuff = state.activeBuffs.find(b => b.type === 'forcedWeather');
     if (weatherBuff) {
         weatherEff = CONFIG.weather.eff[weatherBuff.val]; 
     }
     
-    // check for solar efficiency boost (new)
+    // Check Solar Efficiency Boost
     const solarBuff = state.activeBuffs.find(b => b.type === 'solarEfficiency');
     if (solarBuff) {
-        weatherEff *= solarBuff.val; // e.g. 1.0 * 1.2 = 1.2
+        weatherEff *= solarBuff.val; 
     }
 
     const solarKwh = state.assets.solar * CONFIG.solarMax * sunH * weatherEff * (0.8+Math.random()*0.4) / 6; 
@@ -717,8 +728,7 @@ function processEnergy(gridPrice) {
 
     // 6. Financials
     let revenue = 0;
-    let effectivePrice = state.price;
-
+    
     state.cars.forEach(car => {
         const pKw = CONFIG.chargerPower[car.type];
         const pKwh = (pKw * throttle) / 6;
@@ -745,10 +755,9 @@ function processEnergy(gridPrice) {
     }
 }
 
-// ================= 事件系统 3.0 (逻辑更新) =================
+// ================= 事件系统 =================
 
 function scheduleNextEvent() {
-    // 3-5 days interval
     const offset = 2 + Math.floor(Math.random() * 4); 
     const hour = 9 + Math.floor(Math.random() * 9); 
     state.nextEventTime = { day: state.day + offset, hour: hour };
@@ -763,7 +772,6 @@ const EVENTS = {
         { t: "环保罚单", d: "电池废液处理不当，环保局找上门。", amt: -500, type: 'money' },
         { t: "彩票中奖", d: "你在休息室捡到的彩票中了二等奖！", amt: 800, type: 'money' }
     ],
-    // Added new periodic events and asset discounts
     longTerm: [
         { t: "台风过境", d: "台风'皮卡丘'来袭！暴雨不断，光伏发电基本报废。", type: 'forcedWeather', val: 'rainy', icon: '⛈️' },
         { t: "原材料暴跌", d: "国际铜价崩盘！电网电价打8折。", type: 'gridDiscount', val: 0.8, icon: '📉' },
@@ -774,7 +782,6 @@ const EVENTS = {
         ], icon: '🥵' },
         { t: "油价暴涨", d: "国际油价起飞，开油车的都哭了。客流 +50%。", type: 'trafficMult', val: 1.5, icon: '⛽' },
         
-        // New Discount Events
         { t: "电池技术突破", d: "宁王发布新电池，储能设备采购打7折！", type: 'assetDiscount', target: 'battery', val: 0.7, icon: '🔋' },
         { t: "光伏产能过剩", d: "组件厂清库存，光伏板采购打7折！", type: 'assetDiscount', target: 'solar', val: 0.7, icon: '📉' },
         { t: "基建狂魔", d: "工程队大促销，充电桩和变压器安装费8折！", type: 'assetDiscount', target: 'infra', val: 0.8, icon: '🏗️' }
@@ -782,10 +789,9 @@ const EVENTS = {
 };
 
 function triggerRandomEvent() {
-    // Check if a long-term event is already active
+    // Check for active long-term event
     const hasActiveLongTerm = state.activeBuffs.some(b => b.isEventLongTerm);
 
-    // If active long term event exists, FORCE instant event. Otherwise 40% chance for long term.
     const isLongTerm = !hasActiveLongTerm && Math.random() < 0.4;
     
     let ev;
@@ -793,7 +799,6 @@ function triggerRandomEvent() {
 
     if (isLongTerm) {
         ev = EVENTS.longTerm[Math.floor(Math.random() * EVENTS.longTerm.length)];
-        // Duration varies between 2 to 7 days
         duration = 2 + Math.floor(Math.random() * 6);
         
         if (ev.type === 'multiBuff') {
@@ -826,20 +831,24 @@ function triggerRandomEvent() {
 
     scheduleNextEvent();
     
-    // Force UI update to show discounts immediately if paused
     updateUI(); 
 }
 
 function dailySettle() {
     state.day++;
-    // Weather logic (if not forced)
+    
+    // Shift forecast to today
+    state.weather = state.forecast;
+    
+    // Check for forced weather buff affecting TODAY
     const forcedWeather = state.activeBuffs.find(b => b.type === 'forcedWeather');
     if (forcedWeather) {
         state.weather = forcedWeather.val;
-    } else {
-        state.weather = rollWeather();
     }
-    
+
+    // Roll NEW forecast for tomorrow
+    state.forecast = rollWeather();
+
     // Decrement Buffs
     state.activeBuffs.forEach(b => b.daysLeft--);
     state.activeBuffs = state.activeBuffs.filter(b => b.daysLeft > 0);
@@ -1074,7 +1083,6 @@ function updateUI() {
     
     // Check if weather is forced by buff
     const forced = state.activeBuffs.find(b => b.type === 'forcedWeather');
-    // Check if solar is boosted
     const boosted = state.activeBuffs.find(b => b.type === 'solarEfficiency');
     
     if (boosted) eff *= boosted.val;
@@ -1083,7 +1091,16 @@ function updateUI() {
     let effColor = 'text-slate-500';
     if(w === 'rainy') effColor = 'text-red-500';
     if(boosted) effColor = 'text-green-600 font-black'; // Green if boosted
-    document.getElementById('ui-weather-eff').className = `text-[8px] font-bold ${effColor}`;
+    document.getElementById('ui-weather-eff').className = `text-[8px] font-bold ${effColor} whitespace-nowrap`;
+
+    // Forecast UI Logic
+    let forecastW = state.forecast;
+    // Check if a forced weather buff will still be active tomorrow (daysLeft > 1)
+    if (forced && forced.daysLeft > 1) {
+        forecastW = forced.val;
+    }
+    const fIcon = CONFIG.weather.icons[forecastW];
+    document.getElementById('ui-forecast').innerText = `明:${fIcon}`;
 
     // Grid Price
     let gp = CITY_CONFIG[state.settings.city].prices[state.hour];
@@ -1146,8 +1163,6 @@ function updateUI() {
     const buffBar = document.getElementById('ui-buff-bar');
     if (state.activeBuffs.length > 0) {
         buffBar.classList.remove('hidden');
-        // Deduplicate buffs for display (High Temp creates 2 buffs, we only want to show 1 icon generally, but showing all is fine for now)
-        // Let's filter to show unique names
         const uniqueBuffs = [];
         const seen = new Set();
         state.activeBuffs.forEach(b => {
@@ -1357,11 +1372,12 @@ function drawChargers() {
             // Draw Emoji Car
             ctx.font = '24px sans-serif';
             ctx.textAlign = 'center';
+            ctx.fillStyle = '#000'; // Ensure emoji color is standard
             ctx.fillText(car.emoji, x+20, y+35);
             ctx.textAlign = 'start'; // reset
 
-            // Progress Bar
-            ctx.fillStyle = '#bfdbfe'; ctx.fillRect(x+5, y+24, 30, 8);
+            // Progress Bar (REMOVED THE BLUE RECTANGLE THAT WAS HERE)
+            
             const pct = Math.min(1, car.kwhReceived / car.kwhNeeded);
             ctx.fillStyle = '#374151'; ctx.fillRect(x-5, y+15, 40, 3);
             ctx.fillStyle = '#4ade80'; ctx.fillRect(x-5, y+15, 40 * pct, 3);
@@ -1392,7 +1408,6 @@ function closeEventModal() {
     if (state.money >= 0) setSpeed(state.lastGameSpeed); 
 }
 
-// 修复：添加遗漏的显示账单弹窗函数
 function showBillModal() {
     const balance = state.money;
     const rent = state.pendingRent;
