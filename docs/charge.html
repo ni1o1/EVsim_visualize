@@ -263,7 +263,7 @@
                 <span class="text-[9px] bg-purple-200 px-2 rounded-full mt-0.5 font-bold" id="count-fast">0</span>
             </button>
             <button onclick="buyAsset('transformer')" class="btn bg-gray-100 border-gray-300 text-slate-700 rounded-lg h-14 flex flex-col items-center justify-center border-dashed border-2 border-slate-400 hover:bg-gray-200">
-                <span class="font-bold text-xs">配电 (+20kW)</span>
+                <span class="font-bold text-xs" id="transformer-label">配电 (+20kW)</span>
                 <span class="text-[9px] text-slate-500" id="cost-transformer-wrapper"><span id="cost-transformer">$1250</span> | 日$2.5</span>
                 <span class="text-[9px] bg-gray-300 px-2 rounded-full mt-0.5 font-bold" id="count-transformer">0</span>
             </button>
@@ -333,30 +333,30 @@
                     <div onclick="selectOption('mode', 'offgrid')" class="option-card mode-card border rounded-lg p-3 cursor-pointer flex justify-between items-center" data-val="offgrid">
                         <div>
                             <span class="block text-sm font-bold text-slate-800">离网挑战</span>
-                            <span class="text-[10px] text-slate-400">电网价格等于售价，初始租金$500</span>
+                            <span class="text-[10px] text-slate-400">电网价格等于售价，需依赖光伏储能</span>
                         </div>
                         <span class="text-lg">🔋</span>
                     </div>
                     <div onclick="selectOption('mode', 'ghost')" class="option-card mode-card border rounded-lg p-3 cursor-pointer flex justify-between items-center" data-val="ghost">
                         <div>
                             <span class="block text-sm font-bold text-slate-800">鬼城危机</span>
-                            <span class="text-[10px] text-slate-400">客流减半，艰难求生 (Hard)</span>
+                            <span class="text-[10px] text-slate-400">客流减半，艰难求生 </span>
                         </div>
                         <span class="text-lg">👻</span>
-                    </div>
-                    <div onclick="selectOption('mode', 'jam')" class="option-card mode-card border rounded-lg p-3 cursor-pointer flex justify-between items-center" data-val="jam">
-                        <div>
-                            <span class="block text-sm font-bold text-slate-800">春运堵车</span>
-                            <span class="text-[10px] text-slate-400">无限客流，考验吞吐极限</span>
-                        </div>
-                        <span class="text-lg">🚦</span>
                     </div>
                     <div onclick="selectOption('mode', 'luxury')" class="option-card mode-card border rounded-lg p-3 cursor-pointer flex justify-between items-center" data-val="luxury">
                         <div>
                             <span class="block text-sm font-bold text-slate-800">豪华地段</span>
-                            <span class="text-[10px] text-slate-400">黄金地段租金昂贵，起始$1500</span>
+                            <span class="text-[10px] text-slate-400">客流加倍，但黄金地段租金昂贵</span>
                         </div>
                         <span class="text-lg">💎</span>
+                    </div>
+                    <div onclick="selectOption('mode', 'powerlimit')" class="option-card mode-card border rounded-lg p-3 cursor-pointer flex justify-between items-center" data-val="powerlimit">
+                        <div>
+                            <span class="block text-sm font-bold text-slate-800">限电模式</span>
+                            <span class="text-[10px] text-slate-400">这个城市电压有点低</span>
+                        </div>
+                        <span class="text-lg">⚡</span>
                     </div>
                 </div>
             </div>
@@ -440,7 +440,7 @@ const LOC_CONFIG = {
 
 const CONFIG = {
     initialMoney: 3000, 
-    dailyCost: { slowCharger: 5, fastCharger: 10, solar: 2.5, battery: 2.5, transformer: 2.5 },
+    dailyCost: { slowCharger: 50, fastCharger: 100, solar: 25, battery: 25, transformer: 25 },
     baseWeeklyRent: 1000, // 修改为1000
     rentGrowth: 250, 
     baseCosts: { slowCharger: 800, fastCharger: 1500, solar: 800, battery: 800, transformer: 1250, marketing: 1250 },
@@ -450,10 +450,26 @@ const CONFIG = {
     chargerPower: { slow: 7, fast: 30 },
     baseDailyPool: 20, 
     weather: {
-        types: ['sunny', 'cloudy', 'rainy'],
-        probs: [0.5, 0.3, 0.2],
-        eff: { sunny: 1.0, cloudy: 0.6, rainy: 0.1 },
-        icons: { sunny: '☀️', cloudy: '☁️', rainy: '🌧️' }
+        types: ['sunny', 'cloudy', 'foggy', 'rainy', 'stormy', 'snowy'],
+        // 概率总和建议为 1.0
+        probs: [0.35, 0.25, 0.1, 0.15, 0.05, 0.1],
+        // 光伏发电效率
+        eff: {
+            sunny: 1.0,   // 晴天：标准
+            cloudy: 0.6,  // 多云：6折
+            foggy: 0.4,   // 大雾：4折
+            rainy: 0.1,   // 下雨：1折
+            stormy: 0.0,  // 暴风雨：没电
+            snowy: 0.25   // 下雪：微弱
+        },
+        icons: {
+            sunny: '☀️',
+            cloudy: '☁️',
+            foggy: '🌫️',
+            rainy: '🌧️',
+            stormy: '⛈️',
+            snowy: '❄️'
+        }
     },
     carEmojis: ['🚗', '🚕', '🚙', '🏎️', '🚓', '🚑', '🚐', '🛻'],
     targetDays: 100
@@ -516,21 +532,30 @@ function startGame() {
     state.settings = { ...selectedSettings };
     
     // Apply Mode Modifiers
-    if (state.settings.mode === 'jam') {
-        state.dailyPoolMax = 999;
-        state.dailyPoolLeft = 999;
-    } else if (state.settings.mode === 'ghost') {
+  if (state.settings.mode === 'ghost') {
         state.dailyPoolMax = 10;
         state.dailyPoolLeft = 10;
     } else if (state.settings.mode === 'luxury') {
         // 豪华地段模式：客流更稳定，客户支付意愿更高
-        state.dailyPoolMax = 25; // 比标准模式稍高
-        state.dailyPoolLeft = 25;
+      state.dailyPoolMax = 999;
+        state.dailyPoolLeft = 999;
+    } else if (state.settings.mode === 'powerlimit') {
+        // 限电模式：使用标准客流池
+        state.dailyPoolMax = CONFIG.baseDailyPool;
+        state.dailyPoolLeft = CONFIG.baseDailyPool;
     }
 
     if (state.settings.mode === 'super') {
         document.getElementById('btn-slow').disabled = true;
         document.getElementById('btn-slow').classList.add('opacity-50');
+    }
+
+    // 初始化变压器标签
+    const transformerLabel = document.getElementById('transformer-label');
+    if (state.settings.mode === 'powerlimit') {
+        transformerLabel.innerText = '配电 (+10kW)';
+    } else {
+        transformerLabel.innerText = '配电 (+20kW)';
     }
 
     scheduleNextEvent();
@@ -582,8 +607,8 @@ function tick() {
     // Traffic Calculation
     let trafficProb = LOC_CONFIG[state.settings.loc].traffic[state.hour];
     trafficProb *= 0.15; // 全局客流系数，可手动调整
-    if (state.settings.mode === 'ghost') trafficProb *= 0.05;
-    if (state.settings.mode === 'jam') trafficProb = 0.3;
+    if (state.settings.mode === 'ghost') trafficProb *= 0.2;
+    if (state.settings.mode === 'luxury') trafficProb *= 2;
     
     const trafficBuff = state.activeBuffs.find(b => b.type === 'trafficMult');
     if (trafficBuff) trafficProb *= trafficBuff.val;
@@ -669,7 +694,12 @@ function processEnergy(gridPrice) {
         }
     });
 
-    const limitKw = CONFIG.baseLoadLimit + (state.assets.transformer * CONFIG.transformerBoost);
+    let limitKw = CONFIG.baseLoadLimit + (state.assets.transformer * CONFIG.transformerBoost);
+    
+    // 限电模式：起始电压上限为10kW，每次购买变压器增加10kW
+    if (state.settings.mode === 'powerlimit') {
+        limitKw = 10 + (state.assets.transformer * 10);
+    }
     
     let throttle = 1.0;
     if (totalRequestedKw > limitKw) {
@@ -938,10 +968,12 @@ function dailySettle() {
     spawnFloatText(`日维护 -$${dailyCost}`, '#f97316');
     
     // Reset Pool
-    if (state.settings.mode === 'jam') {
-        state.dailyPoolLeft = 999;
+    if (state.settings.mode === 'luxury') {
+        state.dailyPoolLeft = 99999;
     } else if (state.settings.mode === 'ghost') {
         state.dailyPoolLeft = 10;
+    } else if (state.settings.mode === 'powerlimit') {
+        state.dailyPoolLeft = state.dailyPoolMax; // 限电模式使用标准客流池
     } else {
         state.dailyPoolLeft = state.dailyPoolMax; 
     }
@@ -963,9 +995,16 @@ function dailySettle() {
 
 function rollWeather() {
     const r = Math.random();
-    if (r < CONFIG.weather.probs[0]) return 'sunny';
-    if (r < CONFIG.weather.probs[0] + CONFIG.weather.probs[1]) return 'cloudy';
-    return 'rainy';
+    let cumulativeProb = 0;
+    
+    for (let i = 0; i < CONFIG.weather.types.length; i++) {
+        cumulativeProb += CONFIG.weather.probs[i];
+        if (r < cumulativeProb) {
+            return CONFIG.weather.types[i];
+        }
+    }
+    // 防止浮点数误差导致没有返回，默认返回第一个
+    return CONFIG.weather.types[0];
 }
 
 function calcDailyCost() {
@@ -995,10 +1034,20 @@ function calcWeeklyRent() {
         growth = 125;
     }
     
+    // 限电模式：租金起步低(500)，涨幅也低，与鬼城模式相同
+    if (state.settings.mode === 'powerlimit') {
+        base = 500;
+        growth = 125;
+    }
+        // 鬼城模式：
+    if (state.settings.mode === 'ghost') {
+        base = 500;
+        growth = 125; // 比标准模式的250更高
+    }
     // 豪华地段模式：租金起步高(1500)，涨幅更高
     if (state.settings.mode === 'luxury') {
-        base = 1500;
-        growth = 350; // 比标准模式的250更高
+        base = 2000;
+        growth = 800; // 比标准模式的250更高
     }
     
     return base + (state.weeksSurvived * growth);
@@ -1164,6 +1213,14 @@ function updateUI() {
     const daysLeft = 8 - ((state.day - 1) % 7 + 1);
     document.getElementById('ui-rent-countdown').innerText = daysLeft === 1 ? '明日' : `${daysLeft}天`;
 
+    // 更新变压器标签根据游戏模式
+    const transformerLabel = document.getElementById('transformer-label');
+    if (state.settings.mode === 'powerlimit') {
+        transformerLabel.innerText = '配电 (+10kW)';
+    } else {
+        transformerLabel.innerText = '配电 (+20kW)';
+    }
+
     const lastProfitEl = document.getElementById('ui-last-profit');
     if (state.lastDayProfit !== null) {
         const val = state.lastDayProfit.toFixed(2);
@@ -1178,7 +1235,7 @@ function updateUI() {
     const m = state.minute.toString().padStart(2,'0');
     document.getElementById('ui-clock').innerText = `${h}:${m}`;
     document.getElementById('ui-day').innerText = `D${state.day}`;
-    document.getElementById('ui-pool').innerText = state.settings.mode === 'jam' ? '∞' : `${state.dailyPoolLeft}/${state.dailyPoolMax}`;
+    document.getElementById('ui-pool').innerText = state.settings.mode === 'luxury' ? '∞' : `${state.dailyPoolLeft}/${state.dailyPoolMax}`;
 
     const w = state.weather;
     document.getElementById('ui-weather-icon').innerText = CONFIG.weather.icons[w];
@@ -1248,10 +1305,27 @@ function updateUI() {
         const raw = state.currentCosts[type];
         const actual = getAssetCost(type);
         const el = document.getElementById(elId);
-        if (actual < raw) {
-            el.innerHTML = `<span class="original-price">$${raw}</span> <span class="discount-price">$${actual}</span>`;
-        } else {
-            el.innerText = `$${raw}`;
+        
+        if (!el) return; // 防止null引用错误
+        
+        // Get daily maintenance cost from CONFIG
+        const dailyCost = CONFIG.dailyCost[type] || 0;
+        
+        // Update the wrapper to include daily maintenance cost (except marketing which has no daily cost)
+        const wrapperEl = document.getElementById(elId + '-wrapper');
+        if (wrapperEl && type !== 'marketing') {
+            if (actual < raw) {
+                wrapperEl.innerHTML = `<span class="original-price">$${raw}</span> <span class="discount-price">$${actual}</span> | 日$${dailyCost}`;
+            } else {
+                wrapperEl.innerHTML = `<span>$${raw}</span> | 日$${dailyCost}`;
+            }
+        } else if (wrapperEl && type === 'marketing') {
+            // For marketing, only show the cost without daily maintenance
+            if (actual < raw) {
+                wrapperEl.innerHTML = `<span class="original-price">$${raw}</span> <span class="discount-price">$${actual}</span>`;
+            } else {
+                wrapperEl.innerHTML = `<span>$${raw}</span>`;
+            }
         }
     };
 
@@ -1331,19 +1405,25 @@ function draw() {
     ctx.clearRect(0, 0, canvasWidth, canvasHeight);
     const h = state.hour;
     
-    // Sky gradient
-    let skyColor = '#f8fafc';
-    if (state.weather === 'rainy') {
-        if (h < 6 || h > 19) skyColor = '#334155';
-        else skyColor = '#94a3b8';
-    } else if (state.weather === 'cloudy') {
-        if (h < 6 || h > 19) skyColor = '#475569';
-        else skyColor = '#cbd5e1';
+    // Sky gradient - 万能背景适配逻辑
+    let skyColor = '#f0f9ff'; // 默认
+    
+    // 简单的颜色映射
+    const skyColors = {
+        sunny: '#f0f9ff',
+        cloudy: '#cbd5e1',
+        foggy: '#e2e8f0',
+        rainy: '#94a3b8',
+        stormy: '#334155',
+        snowy: '#f1f5f9'
+    };
+    
+    // 如果当前小时是晚上 (19点到次日6点)
+    if (h < 6 || h > 19) {
+        skyColor = '#1e293b'; // 深蓝黑夜
     } else {
-        if (h < 6 || h > 19) skyColor = '#e2e8f0'; 
-        else if (h > 17) skyColor = '#fff7ed'; 
-        else if (CITY_CONFIG[state.settings.city].prices[h] >= 1.2) skyColor = '#fff'; // Hot logic
-        else skyColor = '#f0f9ff';
+        // 白天根据天气取色，如果没有定义就用灰
+        skyColor = skyColors[state.weather] || '#cbd5e1';
     }
     
     ctx.fillStyle = skyColor;
@@ -1418,9 +1498,12 @@ function drawHub(x, y) {
     ctx.fillStyle = '#fef08a'; ctx.fillRect(x+10, y+40, 60, 5);
     
     // Solar Bar color logic
-    if (state.weather === 'rainy') ctx.fillStyle = '#94a3b8';
-    else if (boosted) ctx.fillStyle = '#ea580c'; // Orange if hot
-    else ctx.fillStyle = '#eab308'; // Standard yellow
+    // 定义哪些天气是"坏天气"，显示为灰色
+    const badWeathers = ['rainy', 'stormy', 'snowy', 'foggy', 'sandstorm', 'acid_rain', 'smog'];
+    
+    if (badWeathers.includes(state.weather)) ctx.fillStyle = '#94a3b8'; // 灰色
+    else if (boosted) ctx.fillStyle = '#ea580c'; // 橙色 (热浪/Buff)
+    else ctx.fillStyle = '#eab308'; // 标准黄色
 
     // Draw solar bar with potential overflow for >100%
     const barWidth = 60 * eff * weatherEff;
