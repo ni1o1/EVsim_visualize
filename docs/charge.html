@@ -551,8 +551,11 @@ function startGame() {
     } else if (state.settings.mode === 'powerlimit') {
         state.dailyPoolMax = CONFIG.baseDailyPool; state.dailyPoolLeft = CONFIG.baseDailyPool;
     } else if (state.settings.mode === 'super') {
-        document.getElementById('btn-slow').disabled = true;
-        document.getElementById('btn-slow').classList.add('opacity-50');
+        const btnSlow = document.getElementById('btn-slow');
+        if (btnSlow) {
+            btnSlow.disabled = true;
+            btnSlow.classList.add('opacity-50');
+        }
     }
 
     if (state.settings.mode === 'rain') {
@@ -658,8 +661,10 @@ function restartGame() {
     if (state.timer) clearTimeout(state.timer);
     closeModal('game-over-modal');
     openModal('start-modal');
-    document.getElementById('btn-continue').classList.add('hidden');
-    document.getElementById('fx-container').innerHTML = '';
+    const btnContinue = document.getElementById('btn-continue');
+    if (btnContinue) btnContinue.classList.add('hidden');
+    const fxContainer = document.getElementById('fx-container');
+    if (fxContainer) fxContainer.innerHTML = '';
 }
 
 function continueGame() {
@@ -669,16 +674,22 @@ function continueGame() {
 }
 
 function openModal(id) {
-    document.getElementById(id).classList.remove('hidden');
-    modalOpenCount++;
-    if (!state.paused) {
-        state.paused = true;
-        clearTimeout(state.timer);
+    const modal = document.getElementById(id);
+    if (modal) {
+        modal.classList.remove('hidden');
+        modalOpenCount++;
+        if (!state.paused) {
+            state.paused = true;
+            clearTimeout(state.timer);
+        }
     }
 }
 
 function closeModal(id) {
-    document.getElementById(id).classList.add('hidden');
+    const modal = document.getElementById(id);
+    if (modal) {
+        modal.classList.add('hidden');
+    }
     modalOpenCount = Math.max(0, modalOpenCount - 1);
 }
 
@@ -735,8 +746,10 @@ function tick() {
         
         // 控制 DOM 警告标签
         const warningEl = document.getElementById('chart-overload-label');
-        if (isOverloaded) warningEl.classList.remove('hidden');
-        else warningEl.classList.add('hidden');
+        if (warningEl) {
+            if (isOverloaded) warningEl.classList.remove('hidden');
+            else warningEl.classList.add('hidden');
+        }
 
         if (myChart) {
              myChart.setOption({
@@ -829,7 +842,10 @@ function showGameOver(victory) {
     document.getElementById('go-desc').innerText = desc;
     document.getElementById('final-days').innerText = state.day;
     
-    if (victory) document.getElementById('btn-continue').classList.remove('hidden');
+    if (victory) {
+        const btnContinue = document.getElementById('btn-continue');
+        if (btnContinue) btnContinue.classList.remove('hidden');
+    }
     openModal('game-over-modal');
 }
 
@@ -1565,14 +1581,16 @@ function showBillModal() {
         finalEl.className = "font-mono font-bold text-green-600";
     }
 
-    document.getElementById('bill-modal').classList.remove('hidden');
+    const billModal = document.getElementById('bill-modal');
+    if (billModal) billModal.classList.remove('hidden');
 }
 
 function payBill() {
     state.money -= state.pendingRent;
     state.pendingRent = 0;
     state.weeksSurvived++; 
-    document.getElementById('bill-modal').classList.add('hidden');
+    const billModal = document.getElementById('bill-modal');
+    if (billModal) billModal.classList.add('hidden');
     checkEndGame();
     if (state.money >= 0) setSpeed(state.lastGameSpeed); 
 }
@@ -1594,8 +1612,11 @@ function setSpeed(ms) {
     else if(ms === 62.5) activeId = 'speed-8';
     
     if(activeId) {
-        document.getElementById(activeId).classList.add('bg-white', 'text-blue-600', 'shadow-sm');
-        document.getElementById(activeId).classList.remove('text-slate-500');
+        const speedBtn = document.getElementById(activeId);
+        if (speedBtn) {
+            speedBtn.classList.add('bg-white', 'text-blue-600', 'shadow-sm');
+            speedBtn.classList.remove('text-slate-500');
+        }
     }
 
     if (ms === 0) {
