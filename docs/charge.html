@@ -223,7 +223,12 @@
             </div>
 
             <!-- 图表容器：绝对定位在底部 -->
-            <div id="chart-container"></div>
+            <div id="chart-container">
+                <!-- 原生 HTML 过载标签，替代 ECharts Graphic -->
+                <div id="chart-overload-label" class="hidden absolute top-0 right-2 bg-red-50 border border-red-400 text-red-600 text-[9px] font-bold px-2 py-0.5 rounded shadow-sm z-20 flex items-center gap-1 backdrop-blur-sm">
+                    <span class="animate-pulse">⚠️</span> <span>电网过载</span>
+                </div>
+            </div>
 
             <canvas id="gameCanvas"></canvas>
             <div id="fx-container" class="absolute top-0 left-0 w-full h-full pointer-events-none overflow-hidden"></div>
@@ -588,32 +593,7 @@ function initChart() {
             top: '20%',    
             containLabel: true
         },
-        // 预埋一个警告文字，默认 invisible: true (隐藏)
-        graphic: [
-            {
-                type: 'group',
-                id: 'warning-group',
-                right: 10,
-                top: 35,
-                invisible: true, // 默认隐藏
-                children: [
-                    {
-                        type: 'rect',
-                        shape: { width: 80, height: 20, r: 4 },
-                        style: { fill: '#fee2e2', stroke: '#ef4444', lineWidth: 1 }
-                    },
-                    {
-                        type: 'text',
-                        style: {
-                            text: '',
-                            fill: '#ef4444',
-                            font: 'bold 10px sans-serif',
-                            x: 40, y: 10, textAlign: 'center', textVerticalAlign: 'middle'
-                        }
-                    }
-                ]
-            }
-        ],
+        // 已删除 graphic 配置，改为原生 DOM
         legend: {
             data: ['昨日', '光伏', '储能', '电网'],
             top: 2, 
@@ -752,17 +732,17 @@ function tick() {
 
         // 2. 判断是否过载 (需求 > 实际上限)
         const isOverloaded = (d.reqLoad || 0) > currentLimit;
+        
+        // 控制 DOM 警告标签
+        const warningEl = document.getElementById('chart-overload-label');
+        if (isOverloaded) warningEl.classList.remove('hidden');
+        else warningEl.classList.add('hidden');
 
         if (myChart) {
              myChart.setOption({
                 yAxis: {
                     max: Math.max(currentLimit, 5) 
                 },
-                // 控制警告文字的显示与隐藏
-                graphic: [{
-                    id: 'warning-group',
-                    invisible: !isOverloaded // 只有过载时显示(invisible=false)
-                }],
                 series: [
                     { data: state.chartData.yesterdayLoad }, // 保持昨日数据
                     { data: state.chartData.solar },   // 更新光伏
@@ -808,6 +788,7 @@ function tick() {
         }
 
         if (state.hour >= 24) {
+            state.hour = 0;
             state.hour = 0;
             dailySettle();
             if (checkEndGame()) return;
