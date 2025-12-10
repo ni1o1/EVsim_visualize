@@ -53,7 +53,7 @@
             bottom: 0;
             left: 0;
             width: 100%;
-            height: 38%; /*稍微增加高度以容纳更多信息*/
+            height: 28%; /*略微降低高度*/
             z-index: 10;
             pointer-events: none; /* 关键：鼠标穿透 */
         }
@@ -226,7 +226,7 @@
             <div id="power-monitor" class="absolute top-2 left-2 right-2 bg-white/95 backdrop-blur rounded p-2 border border-slate-200 shadow-sm pointer-events-none transition-colors duration-300 z-10" style="display: none;">
                 <div class="flex justify-between text-[10px] mb-1 font-bold text-slate-600 items-center">
                     <span id="ui-load-label">实时功率</span>
-                    <span id="ui-load-text" class="font-mono text-xs">0.0 / 50 kW</span>
+                    <span id="ui-load-text" class="font-mono text-xs">0.0 / 20 kW</span>
                 </div>
                 <div class="power-bar-container">
                     <div class="scale-line" style="left: 25%"></div><div class="scale-line" style="left: 50%"></div><div class="scale-line" style="left: 75%"></div>
@@ -287,7 +287,7 @@
                     <span class="font-bold text-[11px]">慢充</span>
                     <span class="text-[9px] opacity-70">7kW</span>
                 </div>
-                <span class="text-[9px] text-slate-500 leading-none mt-0.5" id="cost-slow-wrapper"><span id="cost-slow">$800</span>|日$50</span>
+                <span class="text-[9px] text-slate-500 leading-none mt-0.5" id="cost-slow-wrapper"><span id="cost-slow">$600</span>|日$10</span>
                 <span class="text-[9px] bg-blue-200 px-1.5 rounded-full mt-0.5 font-bold leading-tight" id="count-slow">1</span>
             </button>
             <button id="btn-fast" onclick="buyAsset('fastCharger')" class="btn bg-purple-50 border-purple-200 text-purple-800 rounded-lg py-1.5 flex flex-col items-center justify-center hover:bg-purple-100 min-h-[52px]">
@@ -295,7 +295,7 @@
                     <span class="font-bold text-[11px]">快充</span>
                     <span class="text-[9px] opacity-70">30kW</span>
                 </div>
-                <span class="text-[9px] text-slate-500 leading-none mt-0.5" id="cost-fast-wrapper"><span id="cost-fast">$1500</span>|日$100</span>
+                <span class="text-[9px] text-slate-500 leading-none mt-0.5" id="cost-fast-wrapper"><span id="cost-fast">$1200</span>|日$20</span>
                 <span class="text-[9px] bg-purple-200 px-1.5 rounded-full mt-0.5 font-bold leading-tight" id="count-fast">0</span>
             </button>
             <button onclick="buyAsset('transformer')" class="btn bg-gray-100 border-gray-300 text-slate-700 rounded-lg py-1.5 flex flex-col items-center justify-center border-dashed border-2 border-slate-400 hover:bg-gray-200 min-h-[52px]">
@@ -303,7 +303,7 @@
                     <span class="font-bold text-[11px]">配电</span>
                     <span class="text-[9px] opacity-70" id="transformer-sub">+20kW</span>
                 </div>
-                <span class="text-[9px] text-slate-500 leading-none mt-0.5" id="cost-transformer-wrapper"><span id="cost-transformer">$1250</span>|日$25</span>
+                <span class="text-[9px] text-slate-500 leading-none mt-0.5" id="cost-transformer-wrapper"><span id="cost-transformer">$600</span>|日$10</span>
                 <span class="text-[9px] bg-gray-300 px-1.5 rounded-full mt-0.5 font-bold leading-tight" id="count-transformer">0</span>
             </button>
             <button onclick="buyAsset('solar')" class="btn bg-yellow-50 border border-yellow-200 text-yellow-800 rounded-lg py-1.5 flex flex-col items-center justify-center hover:bg-yellow-100 min-h-[52px]">
@@ -311,7 +311,7 @@
                     <span class="font-bold text-[11px]">光伏</span>
                     <span class="text-[9px] opacity-70">10kW</span>
                 </div>
-                <span class="text-[9px] text-slate-500 leading-none mt-0.5" id="cost-solar-wrapper"><span id="cost-solar">$800</span>|日$25</span>
+                <span class="text-[9px] text-slate-500 leading-none mt-0.5" id="cost-solar-wrapper"><span id="cost-solar">$600</span>|日$10</span>
                 <span class="text-[9px] bg-yellow-200 px-1.5 rounded-full mt-0.5 font-bold leading-tight" id="count-solar">0</span>
             </button>
             <button onclick="buyAsset('battery')" class="btn bg-green-50 border border-green-200 text-green-800 rounded-lg py-1.5 flex flex-col items-center justify-center hover:bg-green-100 min-h-[52px]">
@@ -319,7 +319,7 @@
                     <span class="font-bold text-[11px]">储能</span>
                     <span class="text-[9px] opacity-70">100kWh</span>
                 </div>
-                <span class="text-[9px] text-slate-500 leading-none mt-0.5" id="cost-battery-wrapper"><span id="cost-battery">$800</span>|日$25</span>
+                <span class="text-[9px] text-slate-500 leading-none mt-0.5" id="cost-battery-wrapper"><span id="cost-battery">$600</span>|日$10</span>
                 <span class="text-[9px] bg-green-200 px-1.5 rounded-full mt-0.5 font-bold leading-tight" id="count-battery">0</span>
             </button>
             <button onclick="buyAsset('marketing')" class="btn bg-pink-50 border border-pink-200 text-pink-800 rounded-lg py-1.5 flex flex-col items-center justify-center border-dashed border-2 hover:bg-pink-100 min-h-[52px]">
@@ -327,7 +327,7 @@
                     <span class="font-bold text-[11px]">推广</span>
                     <span class="text-[9px] opacity-70">Ad</span>
                 </div>
-                <span class="text-[9px] text-slate-500 leading-none mt-0.5" id="cost-marketing-wrapper"><span id="cost-marketing">$1250</span></span>
+                <span class="text-[9px] text-slate-500 leading-none mt-0.5" id="cost-marketing-wrapper"><span id="cost-marketing">$1500</span></span>
                 <span class="text-[9px] text-pink-500 mt-0.5 font-bold leading-tight">+10人</span>
             </button>
         </div>
@@ -467,13 +467,13 @@ const LOC_CONFIG = {
 
 const CONFIG = {
     initialMoney: 3500, // 增加初始资金，降低初期挫败感
-    dailyCost: { slowCharger: 10, fastCharger: 50, solar: 10, battery: 10, transformer: 10 },
+    dailyCost: { slowCharger: 10, fastCharger: 20, solar: 10, battery: 10, transformer: 10 },
     baseWeeklyRent: 1000,
     rentGrowth: 250, 
-    baseCosts: { slowCharger: 800, fastCharger: 1500, solar: 800, battery: 800, transformer: 1250, marketing: 1250 },
+    baseCosts: { slowCharger: 600, fastCharger: 1200, solar: 600, battery: 600, transformer: 600, marketing: 1500 },
     inflationRate: 1.10, 
     batteryCap: 100, batteryRate: 20, solarMax: 10, 
-    baseLoadLimit: 10, transformerBoost: 20, 
+    baseLoadLimit: 20, transformerBoost: 20, 
     chargerPower: { slow: 7, fast: 30 },
     baseDailyPool: 15, // 增加初始客流池，避免白天无车
     weather: {
@@ -1527,7 +1527,7 @@ function draw() {
         }
     }
 
-    drawHub(20, 50); 
+    drawHub(10, 10); 
     drawChargers();
     if (state.weather === 'rainy' || state.weather === 'stormy') drawRain();
 }
@@ -1547,11 +1547,16 @@ function drawRain() {
 }
 
 function drawHub(x, y) {
-    ctx.fillStyle = '#ffffff'; ctx.strokeStyle='#94a3b8'; ctx.lineWidth=2;
-    ctx.beginPath(); ctx.roundRect(x, y, 200, 70, 8); ctx.fill(); ctx.stroke();
+    // 移除边框和背景的绘制
+    // ctx.fillStyle = '#ffffff'; 
+    // ctx.strokeStyle='#94a3b8'; 
+    // ctx.lineWidth=2;
+    // ctx.beginPath(); ctx.roundRect(x, y, 200, 70, 8); ctx.fill(); ctx.stroke();
 
+    // 绘制标题和信息，直接写在透明背景上
     ctx.fillStyle = '#64748b'; ctx.font = 'bold 10px sans-serif';
-    ctx.fillText(CITY_CONFIG[state.settings.city].name + ' · 能源中心', x + 10, y + 15);
+    // 稍微向上移动标题位置
+    ctx.fillText(CITY_CONFIG[state.settings.city].name + ' · 能源中心', x + 10, y + 5); 
 
     const eff = (state.hour >= 6 && state.hour <= 18) ? Math.sin((state.hour-6)/12*Math.PI) : 0;
     let weatherEff = CONFIG.weather.eff[state.weather];
@@ -1560,9 +1565,12 @@ function drawHub(x, y) {
     if(forced) weatherEff = CONFIG.weather.eff[forced.val];
     if(boosted) weatherEff *= boosted.val;
     
+    // 光伏部分
     ctx.fillStyle = '#eab308'; 
-    ctx.fillText(`光伏 ${state.assets.solar}`, x+10, y+35);
-    ctx.fillStyle = '#fef08a'; ctx.fillRect(x+10, y+40, 60, 5);
+    // 稍微向上移动光伏文字位置
+    ctx.fillText(`光伏 ${state.assets.solar}`, x+10, y+25); 
+    // 缩小光伏条的高度和背景填充
+    ctx.fillStyle = '#fef08a'; ctx.fillRect(x+10, y+30, 60, 3); // 高度从 5 减为 3
     
     const badWeathers = ['rainy', 'stormy', 'snowy', 'foggy', 'sandstorm', 'acid_rain', 'smog'];
     if (badWeathers.includes(state.weather)) ctx.fillStyle = '#94a3b8'; 
@@ -1570,25 +1578,35 @@ function drawHub(x, y) {
     else ctx.fillStyle = '#eab308'; 
 
     const barWidth = 60 * eff * weatherEff;
-    ctx.fillRect(x+10, y+40, Math.min(60, barWidth), 5);
-    if (barWidth > 60) { ctx.fillStyle = '#ef4444'; ctx.fillRect(x+70, y+38, 4, 9); }
+    ctx.fillRect(x+10, y+30, Math.min(60, barWidth), 3); // 高度从 5 减为 3
+    if (barWidth > 60) { ctx.fillStyle = '#ef4444'; ctx.fillRect(x+70, y+28, 4, 7); } // 调整警告图标高度
 
+    // 储能部分
     const max = state.assets.battery * CONFIG.batteryCap;
     const pct = max > 0 ? state.batteryKwh/max : 0;
     ctx.fillStyle = '#22c55e';
-    ctx.fillText(`储能 ${state.assets.battery}`, x+100, y+35);
-    ctx.strokeStyle = '#64748b'; ctx.lineWidth=1; ctx.strokeRect(x+100, y+40, 40, 10); ctx.fillRect(x+142, y+42, 2, 6);
+    // 稍微向上移动储能文字位置
+    ctx.fillText(`储能 ${state.assets.battery}`, x+100, y+25); 
+    // 缩小储能条的高度和尺寸
+    ctx.strokeStyle = '#64748b'; ctx.lineWidth=1; 
+    ctx.strokeRect(x+100, y+30, 30, 7); // 宽度从 40 减为 30，高度从 10 减为 7
+    ctx.fillRect(x+132, y+32, 2, 3); // 调整电池头尺寸
+    
     ctx.fillStyle = pct<0.2 ? '#ef4444' : '#22c55e';
-    ctx.fillRect(x+101, y+41, 38*pct, 8);
-    ctx.fillStyle = '#64748b'; ctx.font='9px sans-serif';
-    ctx.fillText(max>0 ? `${state.batteryKwh.toFixed(0)}/${max}` : '', x+150, y+48);
+    ctx.fillRect(x+101, y+31, 28*pct, 5); // 调整内部填充尺寸
+    
+    ctx.fillStyle = '#64748b'; ctx.font='8px sans-serif'; // 缩小字体
+    ctx.fillText(max>0 ? `${state.batteryKwh.toFixed(0)}/${max}` : '', x+140, y+36); // 调整位置
 }
 
 function drawChargers() {
     const startX = 20;
-    const startY = 140; 
-    const gapX = 50; 
-    const gapY = 80;
+    const startY = 70; // 配合之前上移的操作
+    
+    // 【修改点1】缩小行列间距
+    const gapX = 35; // 原来 50 -> 35
+    const gapY = 55; // 原来 80 -> 55
+    
     const cols = Math.floor((canvasWidth - 40) / gapX); 
 
     const render = (type, idx, absIdx) => {
@@ -1597,38 +1615,49 @@ function drawChargers() {
         const x = startX + col * gapX;
         const y = startY + row * gapY;
 
+        // 【修改点2】缩小充电桩本体 (22x36)
         ctx.fillStyle = 'rgba(0,0,0,0.05)';
-        ctx.beginPath(); ctx.ellipse(x+20, y+45, 15, 6, 0, 0, Math.PI*2); ctx.fill();
+        // 缩小阴影
+        ctx.beginPath(); ctx.ellipse(x+11, y+38, 10, 4, 0, 0, Math.PI*2); ctx.fill();
+        
         ctx.fillStyle = '#fff'; ctx.strokeStyle = '#94a3b8'; ctx.lineWidth = 1.5;
-        ctx.fillRect(x+5, y, 30, 50); ctx.strokeRect(x+5, y, 30, 50);
+        // 缩小矩形：从 30x50 -> 22x36
+        ctx.fillRect(x, y, 22, 36); ctx.strokeRect(x, y, 22, 36);
+        
         ctx.fillStyle = type === 'slow' ? '#3b82f6' : '#a855f7';
-        ctx.fillRect(x+7, y+2, 26, 4);
+        // 缩小顶部颜色条
+        ctx.fillRect(x+2, y+2, 18, 3);
 
         const car = state.cars.find(c => c.type === type && c.slot === idx);
         if (car) {
-            ctx.font = '24px sans-serif';
+            // 【修改点3】缩小 Emoji 汽车 (16px)
+            ctx.font = '16px sans-serif'; // 原来 24px
             ctx.textAlign = 'center';
             ctx.fillStyle = '#000'; 
-            ctx.fillText(car.emoji, x+20, y+35);
+            ctx.fillText(car.emoji, x+11, y+26); // 调整中心点 x+11
             ctx.textAlign = 'start'; 
 
             const pct = Math.min(1, car.kwhReceived / car.kwhNeeded);
-            ctx.fillStyle = '#374151'; ctx.fillRect(x-5, y+15, 40, 3);
-            ctx.fillStyle = '#4ade80'; ctx.fillRect(x-5, y+15, 40 * pct, 3);
+            // 缩小进度条
+            ctx.fillStyle = '#374151'; ctx.fillRect(x-2, y+30, 26, 3); // 移到底部，宽度减小
+            ctx.fillStyle = '#4ade80'; ctx.fillRect(x-2, y+30, 26 * pct, 3);
+            
             if (!state.paused) {
-                ctx.strokeStyle = '#22c55e'; ctx.lineWidth = 1.5;
-                ctx.beginPath(); ctx.moveTo(x+20, y+10); ctx.lineTo(x+20, y+18); ctx.stroke();
+                ctx.strokeStyle = '#22c55e'; ctx.lineWidth = 1;
+                // 缩短连线
+                ctx.beginPath(); ctx.moveTo(x+11, y+10); ctx.lineTo(x+11, y+18); ctx.stroke();
             }
         } else {
-            ctx.fillStyle = '#cbd5e1'; ctx.font = '9px sans-serif';
-            ctx.textAlign = 'center'; ctx.fillText('空', x+20, y+30); ctx.textAlign = 'start';
+            // 缩小"空"字
+            ctx.fillStyle = '#cbd5e1'; ctx.font = '8px sans-serif';
+            ctx.textAlign = 'center'; ctx.fillText('空', x+11, y+22); ctx.textAlign = 'start';
         }
     };
+    
     let count = 0;
     for (let i = 0; i < state.assets.slowCharger; i++) render('slow', i, count++);
     for (let i = 0; i < state.assets.fastCharger; i++) render('fast', i, count++);
 }
-
 // ================= 交互函数 =================
 
 function closeEventModal() {
