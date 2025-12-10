@@ -203,7 +203,7 @@
         <div class="grid grid-cols-3 gap-2 shrink-0">
             <div class="stat-card border-t-4 border-purple-500">
                 <span class="text-[10px] text-gray-400 font-bold uppercase">今日客流</span>
-                <div class="text-base font-bold text-purple-600 leading-tight" id="ui-pool">10/10</div>
+                <div class="text-base font-bold text-purple-600 leading-tight" id="ui-pool">15/15</div>
             </div>
             <div class="stat-card border-t-4 border-orange-400">
                 <span class="text-[10px] text-gray-400 font-bold uppercase">日成本</span>
@@ -475,7 +475,7 @@ const CONFIG = {
     batteryCap: 100, batteryRate: 20, solarMax: 10, 
     baseLoadLimit: 10, transformerBoost: 20, 
     chargerPower: { slow: 7, fast: 30 },
-    baseDailyPool: 10, // 增加初始客流池，避免白天无车
+    baseDailyPool: 15, // 增加初始客流池，避免白天无车
     weather: {
         types: ['sunny', 'cloudy', 'foggy', 'rainy', 'stormy', 'snowy'],
         probs: [0.35, 0.25, 0.1, 0.15, 0.05, 0.1],
@@ -740,8 +740,8 @@ function tick() {
 
     // 提高基础概率，改善初期无车体验
     let trafficProb = LOC_CONFIG[state.settings.loc].traffic[state.hour];
-    trafficProb *= 0.35; // 之前是0.15，提高到0.25
-    if (state.settings.mode === 'ghost') trafficProb *= 0.75;
+    trafficProb *= 0.18; // 之前是0.15，提高到0.25
+    if (state.settings.mode === 'ghost') trafficProb *= 0.35;
     if (state.settings.mode === 'jam') trafficProb *= 2;
     if (state.settings.mode === 'luxury') trafficProb *= 2;
     
