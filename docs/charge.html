@@ -393,7 +393,7 @@
         </div>
 
         <div onclick="selectOption('mode', 'offgrid')" class="option-card mode-card border rounded-lg p-2 cursor-pointer flex justify-between items-center h-full" data-val="offgrid">
-            <div class="overflow-hidden"><span class="block text-sm font-bold text-slate-800 truncate">离网挑战</span><span class="block text-[10px] text-slate-400 leading-tight">高价资产</span></div><span class="text-lg ml-1">🔋</span>
+            <div class="overflow-hidden"><span class="block text-sm font-bold text-slate-800 truncate">离网挑战</span><span class="block text-[10px] text-slate-400 leading-tight">仅用光储</span></div><span class="text-lg ml-1">🔋</span>
         </div>
 
         <div onclick="selectOption('mode', 'ghost')" class="option-card mode-card border rounded-lg p-2 cursor-pointer flex justify-between items-center h-full" data-val="ghost">
@@ -611,14 +611,18 @@ const CONFIG = {
     baseLoadLimit: 20, transformerBoost: 20, 
     chargerPower: { slow: 7, fast: 30 },
     baseDailyPool: 15, // 增加初始客流池，避免白天无车
-    weather: {
-        types: ['sunny', 'cloudy', 'foggy', 'rainy', 'stormy', 'snowy'],
-        probs: [0.35, 0.25, 0.1, 0.15, 0.05, 0.1],
+weather: {
+        // 修改点：只保留 晴、阴、雨，概率调整为 0.6, 0.3, 0.1
+        types: ['sunny', 'cloudy', 'rainy'],
+        probs: [0.7, 0.2, 0.1],
         eff: { 
-            sunny: 1.0, cloudy: 0.6, foggy: 0.4, rainy: 0.1, stormy: 0.0, snowy: 0.25 
+            sunny: 1.0, cloudy: 0.6, rainy: 0.1, 
+            // 下面这几个虽然用不到了，但留着防止报错
+            foggy: 0.4, stormy: 0.0, snowy: 0.25 
         },
         icons: { 
-            sunny: '☀️', cloudy: '☁️', foggy: '🌫️', rainy: '🌧️', stormy: '⛈️', snowy: '❄️' 
+            sunny: '☀️', cloudy: '☁️', rainy: '🌧️', 
+            foggy: '🌫️', stormy: '⛈️', snowy: '❄️' 
         }
     },
     carEmojis: ['🚗', '🚕', '🚙', '🏎️', '🚓', '🚑', '🚐', '🛻'],
@@ -1243,16 +1247,34 @@ function triggerRandomEvent() {
         document.getElementById('ev-amt').innerText = `持续 ${duration} 天`;
         document.getElementById('ev-amt').className = "font-bold text-blue-600";
     } else {
-        ev = EVENTS.instant[Math.floor(Math.random() * EVENTS.instant.length)];
-        // --- 修复开始 ---
-        // 只有当基础金额不为0时才应用膨胀逻辑
+        // === 👇 修改开始：根据资金动态调整事件池 👇 ===
+        
+        let candidateEvents = EVENTS.instant;
+        const currentRent = calcWeeklyRent(); // 获取当前租金
+        
+        // 场景1：资金极度危险 (钱 < 租金) -> 只能发生好事
+        if (state.money < currentRent) {
+            candidateEvents = candidateEvents.filter(e => e.amt > 0);
+        } 
+        // 场景2：资金紧张 (钱 < 1.5倍租金) -> 好事概率增加
+        else if (state.money < currentRent * 1.5) {
+            // 策略：把所有好事(正向事件)额外复制两份加入池子，稀释坏事的占比
+            const goodEvents = candidateEvents.filter(e => e.amt > 0);
+            candidateEvents = [...candidateEvents, ...goodEvents, ...goodEvents];
+        }
+
+        // 从筛选/加权后的池子中抽取
+        ev = candidateEvents[Math.floor(Math.random() * candidateEvents.length)];
+        
+        // === 👆 修改结束 👆 ===
+
+        // 下面是之前那个“通货膨胀”的修复逻辑，请保留
         let inflation = 0;
         if (ev.amt !== 0) {
-            // 如果是正数(奖励)，就越加越多；如果是负数(罚款)，就越扣越多
-            inflation = (ev.amt > 0 ? 1 : -1) * state.day * 5;
+             inflation = (ev.amt > 0 ? 1 : -1) * state.day * 5;
         }
         let amount = ev.amt + inflation;
-        // --- 修复结束 ---
+        
         state.money += amount;
         document.getElementById('ev-amt').innerText = (amount > 0 ? "+" : "") + `$${Math.abs(amount)}`;
         document.getElementById('ev-amt').className = amount > 0 ? "font-bold font-mono text-lg text-green-600" : "font-bold font-mono text-lg text-red-600";
