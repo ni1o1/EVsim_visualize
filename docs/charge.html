@@ -268,16 +268,29 @@
                 </div>
             </div>
 
-            <div class="bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-200 flex-1 flex flex-col justify-center">
-                <div class="flex justify-between mb-0.5 items-end">
-                    <label class="text-[10px] font-bold text-slate-500">销售电价</label>
-                    <span id="price-display" class="font-mono font-bold text-blue-600 text-lg leading-none">$1.50</span>
-                </div>
-                <input type="range" id="price-slider" min="0.5" max="3.0" step="0.1" value="1.5" oninput="updatePrice(this.value)">
-                <div class="flex justify-between text-[8px] text-slate-400 mt-0.5 font-medium">
-                    <span>$0.5</span><span>$1.5</span><span>$3.0</span>
-                </div>
+<div class="bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-200 flex-1 flex flex-col justify-center">
+    <div class="flex justify-between mb-1 items-end">
+        <label class="text-[10px] font-bold text-slate-500">销售电价</label>
+        <span id="price-display" class="font-mono font-bold text-blue-600 text-lg leading-none">$1.50</span>
+    </div>
+    
+    <div class="flex items-center gap-2">
+        <button onclick="adjustPrice(-0.1)" class="w-8 h-8 flex items-center justify-center bg-white border border-slate-300 rounded-full shadow-sm active:scale-95 text-slate-600 font-bold text-lg leading-none touch-manipulation">
+            -
+        </button>
+        
+        <div class="flex-1 relative h-6 flex items-center">
+            <input type="range" id="price-slider" min="0.5" max="3.0" step="0.1" value="1.5" oninput="updatePrice(this.value)" class="relative z-10">
             </div>
+
+        <button onclick="adjustPrice(0.1)" class="w-8 h-8 flex items-center justify-center bg-white border border-slate-300 rounded-full shadow-sm active:scale-95 text-blue-600 font-bold text-lg leading-none touch-manipulation">
+            +
+        </button>
+    </div>
+    <div class="flex justify-between text-[8px] text-slate-400 mt-1 font-medium px-1">
+        <span>$0.5</span><span>$1.5</span><span>$3.0</span>
+    </div>
+</div>
         </div>
 
         <!-- 压缩的按钮网格：高度减少，字体微调 -->
@@ -2026,7 +2039,21 @@ function updatePrice(v) {
     state.price = parseFloat(v);
     document.getElementById('price-display').innerText = `$${state.price.toFixed(2)}`;
 }
-
+// === 新增：滑块微调逻辑 ===
+function adjustPrice(delta) {
+    let newVal = state.price + delta;
+    // 限制范围
+    newVal = Math.max(0.5, Math.min(3.0, newVal));
+    // 解决浮点数精度问题 (例如 1.1 + 0.1 = 1.20000002)
+    newVal = Math.round(newVal * 10) / 10;
+    
+    // 更新状态
+    updatePrice(newVal);
+    
+    // 同步更新滑块 UI 的位置
+    const slider = document.getElementById('price-slider');
+    if (slider) slider.value = newVal;
+}
 function setSpeed(ms) {
     document.querySelectorAll('.speed-btn').forEach(btn => {
         btn.classList.remove('bg-white', 'text-blue-600', 'shadow-sm');
