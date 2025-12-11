@@ -614,7 +614,7 @@ const CONFIG = {
 weather: {
         // 修改点：只保留 晴、阴、雨，概率调整为 0.6, 0.3, 0.1
         types: ['sunny', 'cloudy', 'rainy'],
-        probs: [0.7, 0.2, 0.1],
+        probs: [0.6, 0.3, 0.2],
         eff: { 
             sunny: 1.0, cloudy: 0.6, rainy: 0.1, 
             // 下面这几个虽然用不到了，但留着防止报错
@@ -642,6 +642,39 @@ function generateTimeLabels() {
     return labels;
 }
 const TIME_LABELS = generateTimeLabels(); // 144个时间点
+
+// === 天气动画状态系统 ===
+const weatherSystem = {
+    sunAngle: 0,
+    clouds: [],
+    rainDrops: [],
+    init: false
+};
+
+// 初始化天气粒子 (只需调用一次)
+function initWeatherSystem(w, h) {
+    // 生成云朵 (5朵)
+    weatherSystem.clouds = [];
+    for(let i=0; i<5; i++) {
+        weatherSystem.clouds.push({
+            x: Math.random() * w,
+            y: 20 + Math.random() * 60,
+            speed: 0.2 + Math.random() * 0.3,
+            scale: 0.8 + Math.random() * 0.5
+        });
+    }
+    // 生成雨滴 (100个)
+    weatherSystem.rainDrops = [];
+    for(let i=0; i<100; i++) {
+        weatherSystem.rainDrops.push({
+            x: Math.random() * w,
+            y: Math.random() * h,
+            speed: 10 + Math.random() * 10,
+            len: 10 + Math.random() * 15
+        });
+    }
+    weatherSystem.init = true;
+}
 
 // ================= 状态管理 =================
 let state = getInitialState();
@@ -1678,45 +1711,150 @@ function resizeCanvas() {
 window.addEventListener('resize', resizeCanvas);
 
 function draw() {
-    if (!canvasWidth) return; 
+    if (!canvasWidth) return;
+    
+    // 初始化粒子系统(如果还没初始化)
+    if (!weatherSystem.init) initWeatherSystem(canvasWidth, canvasHeight);
+
     ctx.clearRect(0, 0, canvasWidth, canvasHeight);
+    
     const h = state.hour;
+    const w = state.weather;
     
-    let skyColor = '#f0f9ff'; 
-    const skyColors = {
-        sunny: '#f0f9ff', cloudy: '#cbd5e1', foggy: '#e2e8f0', rainy: '#94a3b8', stormy: '#334155', snowy: '#f1f5f9'
-    };
-    if (h < 6 || h > 19) skyColor = '#1e293b'; 
-    else skyColor = skyColors[state.weather] || '#cbd5e1';
+    // --- 1. 绘制动态天空 (渐变色) ---
+    let bgGrad = ctx.createLinearGradient(0, 0, 0, canvasHeight);
     
-    ctx.fillStyle = skyColor;
+    if (h < 6 || h >= 19) {
+        // 夜晚: 深蓝 -> 黑
+        bgGrad.addColorStop(0, '#0f172a');
+        bgGrad.addColorStop(1, '#020617');
+    } else {
+        // 白天根据天气改变基调
+        if (w === 'sunny') {
+            // 晴天: 鲜艳的天蓝 -> 浅蓝
+            bgGrad.addColorStop(0, '#38bdf8'); 
+            bgGrad.addColorStop(1, '#bae6fd'); 
+        } else if (w === 'cloudy') {
+            // 阴天: 灰蓝 -> 灰白
+            bgGrad.addColorStop(0, '#94a3b8'); 
+            bgGrad.addColorStop(1, '#e2e8f0'); 
+        } else if (w === 'rainy') {
+            // 下雨: 深灰 -> 灰
+            bgGrad.addColorStop(0, '#475569'); 
+            bgGrad.addColorStop(1, '#64748b'); 
+        }
+    }
+    ctx.fillStyle = bgGrad;
     ctx.fillRect(0, 0, canvasWidth, canvasHeight);
 
-    let celestialX = canvasWidth - 50;
-    let celestialY = 50;
-    if (state.weather === 'rainy' || state.weather === 'stormy') {
-        ctx.fillStyle = state.weather === 'stormy' ? '#334155' : '#64748b';
-        ctx.beginPath(); ctx.ellipse(celestialX, celestialY, 40, 20, 0, 0, Math.PI * 2); ctx.fill();
-        ctx.beginPath(); ctx.ellipse(celestialX-20, celestialY+10, 30, 20, 0, 0, Math.PI * 2); ctx.fill();
-    } else if (state.weather === 'cloudy' || state.weather === 'foggy') {
-        ctx.fillStyle = '#94a3b8';
-        ctx.beginPath(); ctx.ellipse(celestialX, celestialY, 40, 25, 0, 0, Math.PI * 2); ctx.fill();
+    // --- 2. 绘制天体 (太阳/月亮) ---
+    const celestialX = canvasWidth - 60;
+    const celestialY = 60;
+    
+    if (h < 6 || h >= 19) {
+        // 🌙 月亮
+        ctx.fillStyle = '#fefce8';
+        ctx.shadowColor = '#fefce8';
+        ctx.shadowBlur = 20;
+        ctx.beginPath(); ctx.arc(celestialX, celestialY, 25, 0, Math.PI*2); ctx.fill();
+        ctx.shadowBlur = 0; // 重置阴影
+        // 月坑纹理
+        ctx.fillStyle = 'rgba(200,200,200,0.2)';
+        ctx.beginPath(); ctx.arc(celestialX-8, celestialY-5, 6, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.arc(celestialX+10, celestialY+8, 4, 0, Math.PI*2); ctx.fill();
     } else {
-        ctx.beginPath();
-        ctx.arc(celestialX, celestialY, 30, 0, Math.PI * 2);
-        const isHot = state.activeBuffs.some(b => b.type === 'solarEfficiency');
-        ctx.fillStyle = (h>=6 && h<=18) ? (isHot ? '#f59e0b' : '#fcd34d') : '#cbd5e1'; 
-        ctx.fill();
-        if ((h>=6 && h<=18) && isHot) {
-            ctx.strokeStyle = 'rgba(245, 158, 11, 0.4)';
-            ctx.lineWidth = 2;
-            ctx.beginPath(); ctx.arc(celestialX, celestialY, 38 + Math.sin(Date.now()/500)*5, 0, Math.PI*2); ctx.stroke();
+        // ☀️ 太阳 (仅在非雨天或小雨时明显)
+        if (w !== 'rainy') {
+            // 旋转光芒 (Sunny 特效)
+            if (w === 'sunny') {
+                weatherSystem.sunAngle += 0.005; // 旋转动画
+                ctx.save();
+                ctx.translate(celestialX, celestialY);
+                ctx.rotate(weatherSystem.sunAngle);
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.2)';
+                for(let i=0; i<8; i++) {
+                    ctx.beginPath();
+                    ctx.moveTo(0, 0);
+                    ctx.lineTo(-10, -80);
+                    ctx.lineTo(10, -80);
+                    ctx.fill();
+                    ctx.rotate(Math.PI / 4);
+                }
+                ctx.restore();
+            }
+
+            // 太阳本体
+            ctx.fillStyle = '#fbbf24'; // 琥珀色核心
+            if (w === 'sunny') {
+                ctx.shadowColor = '#fbbf24';
+                ctx.shadowBlur = 40; // 强光晕
+            }
+            ctx.beginPath(); ctx.arc(celestialX, celestialY, 30, 0, Math.PI*2); ctx.fill();
+            ctx.shadowBlur = 0;
+            
+            // 高光
+            ctx.fillStyle = 'rgba(255,255,255,0.3)';
+            ctx.beginPath(); ctx.arc(celestialX-10, celestialY-10, 8, 0, Math.PI*2); ctx.fill();
         }
     }
 
+    // --- 3. 绘制天气特效 (云/雨) ---
+
+    // ☁️ 阴天/雨天：绘制动态云层
+    if (w === 'cloudy' || w === 'rainy') {
+        const cloudColor = w === 'rainy' ? 'rgba(51, 65, 85, 0.8)' : 'rgba(255, 255, 255, 0.6)';
+        
+        weatherSystem.clouds.forEach(cloud => {
+            // 移动云朵
+            cloud.x += cloud.speed;
+            if (cloud.x > canvasWidth + 100) cloud.x = -100; // 循环
+
+            ctx.fillStyle = cloudColor;
+            ctx.beginPath();
+            // 用三个圆拼成一朵云
+            const cx = cloud.x;
+            const cy = cloud.y;
+            const s = cloud.scale;
+            ctx.arc(cx, cy, 30*s, 0, Math.PI * 2); 
+            ctx.arc(cx + 40*s, cy - 10*s, 35*s, 0, Math.PI * 2);
+            ctx.arc(cx + 80*s, cy + 5*s, 28*s, 0, Math.PI * 2);
+            ctx.fill();
+        });
+    }
+
+    // 🌧️ 雨天：绘制下落雨滴
+    if (w === 'rainy') {
+        ctx.strokeStyle = 'rgba(203, 213, 225, 0.6)';
+        ctx.lineWidth = 1.5;
+        
+        weatherSystem.rainDrops.forEach(drop => {
+            drop.y += drop.speed;
+            drop.x -= 1; // 稍微向左倾斜
+            
+            // 循环重置
+            if (drop.y > canvasHeight) {
+                drop.y = -20;
+                drop.x = Math.random() * canvasWidth;
+            }
+
+            ctx.beginPath();
+            ctx.moveTo(drop.x, drop.y);
+            ctx.lineTo(drop.x - 2, drop.y + drop.len); // 倾斜的线
+            ctx.stroke();
+            
+            // 落地溅射 (偶尔画一下)
+            if (drop.y > canvasHeight - 50 && Math.random() > 0.8) {
+                ctx.fillStyle = 'rgba(255,255,255,0.5)';
+                ctx.beginPath();
+                ctx.ellipse(drop.x, canvasHeight-10, 5, 2, 0, 0, Math.PI*2);
+                ctx.fill();
+            }
+        });
+    }
+    
+    // --- 4. 绘制建筑 (保持原样) ---
     drawHub(10, 10); 
     drawChargers();
-    if (state.weather === 'rainy' || state.weather === 'stormy') drawRain();
 }
 
 function drawRain() {
