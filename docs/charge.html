@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>EV Tycoon: Strategy Edition v1.2</title>
+    <title>EV Tycoon: Strategy Edition v1.3 (Loan Update)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- 引入 ECharts -->
     <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
@@ -34,7 +34,6 @@
 
         #canvas-wrapper {
             width: 100%;
-            /* 动态高度：剩余空间分配给画布，但给个最小高度 */
             flex: 1; 
             min-height: 300px;
             background: #fff;
@@ -53,9 +52,9 @@
             bottom: 0;
             left: 0;
             width: 100%;
-            height: 28%; /*略微降低高度*/
+            height: 28%; 
             z-index: 10;
-            pointer-events: none; /* 关键：鼠标穿透 */
+            pointer-events: none; 
         }
 
         canvas { 
@@ -68,7 +67,7 @@
             background: #fff;
             box-shadow: 0 -4px 20px rgba(0,0,0,0.08);
             border-top: 1px solid #e2e8f0;
-            padding: 8px 12px; /* 减小内边距 */
+            padding: 8px 12px; 
             flex-shrink: 0;
             z-index: 50;
             padding-bottom: env(safe-area-inset-bottom, 12px);
@@ -86,6 +85,7 @@
             justify-content: center;
             align-items: center;
             min-height: 48px;
+            position: relative;
         }
 
         .btn { 
@@ -128,8 +128,8 @@
 
         input[type=range] { -webkit-appearance: none; width: 100%; background: transparent; }
         input[type=range]::-webkit-slider-thumb {
-            -webkit-appearance: none; height: 20px; width: 20px; border-radius: 50%;
-            background: #2563eb; margin-top: -8px; box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+            -webkit-appearance: none; height: 18px; width: 18px; border-radius: 50%;
+            background: #2563eb; margin-top: -7px; box-shadow: 0 2px 4px rgba(0,0,0,0.2);
         }
         input[type=range]::-webkit-slider-runnable-track {
             width: 100%; height: 4px; cursor: pointer; background: #cbd5e1; border-radius: 2px;
@@ -163,6 +163,27 @@
         .profit-plus { color: #16a34a; }
         .profit-minus { color: #ef4444; }
 
+        /* 3D 按钮特效 */
+        .btn-3d {
+            position: relative;
+            border-bottom-width: 3px; /* 底部边框模拟厚度 */
+            transition: all 0.1s;
+            top: 0;
+        }
+        .btn-3d:active {
+            border-bottom-width: 0px; /* 按下时边框消失 */
+            top: 3px; /* 整体下移，模拟被按进去了 */
+        }
+        .btn-3d:disabled {
+            opacity: 0.6;
+            filter: grayscale(100%);
+            cursor: not-allowed;
+            border-bottom-width: 0;
+            top: 3px;
+            background-color: #e2e8f0;
+            color: #94a3b8;
+            border-color: transparent;
+        }
     </style>
 </head>
 <body>
@@ -171,12 +192,16 @@
         <!-- 第一行 -->
         <div class="flex gap-2 shrink-0">
             <div class="w-1/3 stat-card border-t-4 border-green-500 relative overflow-hidden">
-                <div class="text-[10px] text-gray-400 font-bold uppercase">资金</div>
+                <div class="flex items-center justify-between w-full px-1">
+                    <span class="text-[10px] text-gray-400 font-bold uppercase">资金</span>
+                    <!-- 贷款按钮 -->
+                    <button onclick="openLoanModal()" class="px-2 py-0.5 flex items-center justify-center bg-blue-100 hover:bg-blue-200 text-blue-700 rounded text-[10px] font-bold shadow-sm active:scale-95 transition-transform" title="银行贷款">🏦 贷款</button>
+                </div>
                 <div class="flex items-baseline justify-center w-full">
                     <div class="text-base font-mono text-green-700 font-bold leading-none mb-0.5" id="ui-money">$3500.00</div>
                 </div>
                 <!-- 实时利润跳动 -->
-                <div class="absolute top-1 right-1" id="ui-tick-profit"></div>
+                <div class="absolute top-6 right-1" id="ui-tick-profit"></div>
                 
                 <div class="text-[9px] text-gray-400 font-medium" id="ui-last-profit">昨日: --</div>
             </div>
@@ -199,22 +224,27 @@
             </div>
         </div>
 
-        <!-- 第二行 -->
-        <div class="grid grid-cols-3 gap-2 shrink-0">
+        <!-- 第二行：改为 4 列以容纳贷款信息 -->
+        <div class="grid grid-cols-4 gap-2 shrink-0">
             <div class="stat-card border-t-4 border-purple-500">
-                <span class="text-[10px] text-gray-400 font-bold uppercase">今日客流</span>
-                <div class="text-base font-bold text-purple-600 leading-tight" id="ui-pool">15/15</div>
+                <span class="text-[8px] text-gray-400 font-bold uppercase scale-90">客流</span>
+                <div class="text-sm font-bold text-purple-600 leading-tight" id="ui-pool">15</div>
             </div>
             <div class="stat-card border-t-4 border-orange-400">
-                <span class="text-[10px] text-gray-400 font-bold uppercase">日成本</span>
-                <span class="text-sm font-bold text-orange-600 font-mono" id="ui-daily-cost">-$7.50</span>
+                <span class="text-[8px] text-gray-400 font-bold uppercase scale-90">日成本</span>
+                <span class="text-xs font-bold font-mono" id="ui-daily-cost">-$7.5</span>
+            </div>
+            <!-- 新增：还贷信息卡片 -->
+            <div class="stat-card border-t-4 border-indigo-500 bg-indigo-50/50" id="card-loan-status" onclick="openLoanModal()">
+                <span class="text-[8px] text-indigo-400 font-bold uppercase scale-90">今日还款</span>
+                <span class="text-xs font-bold font-mono text-indigo-600" id="ui-loan-payment">--</span>
             </div>
             <div class="stat-card border-t-4 border-red-500">
-                <div class="flex items-center gap-1">
-                    <span class="text-[10px] text-gray-400 font-bold uppercase">周租金</span>
-                    <span class="text-[8px] bg-red-100 text-red-500 px-1 rounded-full" id="ui-rent-countdown">6天</span>
+                <div class="flex items-center justify-center gap-0.5">
+                    <span class="text-[8px] text-gray-400 font-bold uppercase scale-90">周租</span>
+                    <span class="text-[7px] bg-red-100 text-red-500 px-0.5 rounded" id="ui-rent-countdown">6d</span>
                 </div>
-                <span class="text-sm font-bold text-red-600 font-mono" id="ui-weekly-rent">-$500</span>
+                <span class="text-xs font-bold text-red-600 font-mono" id="ui-weekly-rent">-$500</span>
             </div>
         </div>
 
@@ -260,6 +290,7 @@
         <div class="flex gap-2">
             <div class="flex flex-col justify-between w-1/3">
                 <div class="text-[10px] text-slate-400 font-bold mb-1">电网成本: <span id="ui-grid-price" class="text-slate-700 text-sm">$0.40</span></div>
+                <div class="text-[10px] text-slate-400 font-bold mb-1">游戏速度: </div>
                 <div class="flex bg-slate-100 p-1 rounded-lg gap-0.5">
                      <button onclick="setSpeed(0)" class="speed-btn flex-1 py-1 rounded text-[10px] font-bold text-slate-500" id="speed-0">⏸</button>
                      <button onclick="setSpeed(500)" class="speed-btn flex-1 py-1 rounded text-[10px] font-bold bg-white text-blue-600 shadow-sm" id="speed-1">1x</button>
@@ -294,59 +325,95 @@
         </div>
 
         <!-- 压缩的按钮网格：高度减少，字体微调 -->
-        <div class="grid grid-cols-3 gap-2">
-            <button id="btn-slow" onclick="buyAsset('slowCharger')" class="btn bg-blue-50 border-blue-200 text-blue-800 rounded-lg py-1.5 flex flex-col items-center justify-center hover:bg-blue-100 min-h-[52px]">
-                <div class="flex items-baseline gap-1">
-                    <span class="font-bold text-[11px]">慢充</span>
-                    <span class="text-[9px] opacity-70">7kW</span>
-                </div>
-                <span class="text-[9px] text-slate-500 leading-none mt-0.5" id="cost-slow-wrapper"><span id="cost-slow">$600</span>|日$10</span>
-                <span class="text-[9px] bg-blue-200 px-1.5 rounded-full mt-0.5 font-bold leading-tight" id="count-slow">1</span>
-            </button>
-            <button id="btn-fast" onclick="buyAsset('fastCharger')" class="btn bg-purple-50 border-purple-200 text-purple-800 rounded-lg py-1.5 flex flex-col items-center justify-center hover:bg-purple-100 min-h-[52px]">
-                <div class="flex items-baseline gap-1">
-                    <span class="font-bold text-[11px]">快充</span>
-                    <span class="text-[9px] opacity-70">30kW</span>
-                </div>
-                <span class="text-[9px] text-slate-500 leading-none mt-0.5" id="cost-fast-wrapper"><span id="cost-fast">$1200</span>|日$20</span>
-                <span class="text-[9px] bg-purple-200 px-1.5 rounded-full mt-0.5 font-bold leading-tight" id="count-fast">0</span>
-            </button>
-            <button onclick="buyAsset('transformer')" class="btn bg-gray-100 border-gray-300 text-slate-700 rounded-lg py-1.5 flex flex-col items-center justify-center border-dashed border-2 border-slate-400 hover:bg-gray-200 min-h-[52px]">
-                <div class="flex items-baseline gap-1">
-                    <span class="font-bold text-[11px]">配电</span>
-                    <span class="text-[9px] opacity-70" id="transformer-sub">+20kW</span>
-                </div>
-                <span class="text-[9px] text-slate-500 leading-none mt-0.5" id="cost-transformer-wrapper"><span id="cost-transformer">$600</span>|日$10</span>
-                <span class="text-[9px] bg-gray-300 px-1.5 rounded-full mt-0.5 font-bold leading-tight" id="count-transformer">0</span>
-            </button>
-            <button onclick="buyAsset('solar')" class="btn bg-yellow-50 border border-yellow-200 text-yellow-800 rounded-lg py-1.5 flex flex-col items-center justify-center hover:bg-yellow-100 min-h-[52px]">
-                <div class="flex items-baseline gap-1">
-                    <span class="font-bold text-[11px]">光伏</span>
-                    <span class="text-[9px] opacity-70">10kW</span>
-                </div>
-                <span class="text-[9px] text-slate-500 leading-none mt-0.5" id="cost-solar-wrapper"><span id="cost-solar">$600</span>|日$10</span>
-                <span class="text-[9px] bg-yellow-200 px-1.5 rounded-full mt-0.5 font-bold leading-tight" id="count-solar">0</span>
-            </button>
-            <button onclick="buyAsset('battery')" class="btn bg-green-50 border border-green-200 text-green-800 rounded-lg py-1.5 flex flex-col items-center justify-center hover:bg-green-100 min-h-[52px]">
-                <div class="flex items-baseline gap-1">
-                    <span class="font-bold text-[11px]">储能</span>
-                    <span class="text-[9px] opacity-70">100kWh</span>
-                </div>
-                <span class="text-[9px] text-slate-500 leading-none mt-0.5" id="cost-battery-wrapper"><span id="cost-battery">$600</span>|日$10</span>
-                <span class="text-[9px] bg-green-200 px-1.5 rounded-full mt-0.5 font-bold leading-tight" id="count-battery">0</span>
-            </button>
-            <button onclick="buyAsset('marketing')" class="btn bg-pink-50 border border-pink-200 text-pink-800 rounded-lg py-1.5 flex flex-col items-center justify-center border-dashed border-2 hover:bg-pink-100 min-h-[52px]">
-                <div class="flex items-baseline gap-1">
-                    <span class="font-bold text-[11px]">推广</span>
-                    <span class="text-[9px] opacity-70">Ad</span>
-                </div>
-                <span class="text-[9px] text-slate-500 leading-none mt-0.5" id="cost-marketing-wrapper"><span id="cost-marketing">$1500</span></span>
-                <span class="text-[9px] text-pink-500 mt-0.5 font-bold leading-tight">+10人</span>
-            </button>
+<div class="grid grid-cols-3 gap-2">
+    
+    <button id="btn-slow" onclick="buyAsset('slowCharger')" class="btn-3d bg-blue-100 border-blue-300 text-blue-900 rounded-lg px-2 py-1 flex flex-col justify-between h-[54px]">
+        <div class="flex justify-between items-baseline w-full">
+            <span class="font-bold text-[11px]">慢充</span>
+            <span class="text-[9px] opacity-60">7kW</span>
         </div>
+        <div class="flex justify-between items-end w-full">
+            <div class="flex flex-col items-start leading-none gap-0.5">
+                <span class="text-[10px] font-bold font-mono" id="cost-slow">$600</span>
+                <span class="text-[8px] font-medium transform scale-95 origin-left">维护$10/日</span>
+            </div>
+            <span class="text-[9px] bg-white/60 px-1.5 py-0.5 rounded text-blue-800 font-bold leading-none shadow-sm mb-0.5" id="count-slow">1</span>
+        </div>
+    </button>
+
+    <button id="btn-fast" onclick="buyAsset('fastCharger')" class="btn-3d bg-purple-100 border-purple-300 text-purple-900 rounded-lg px-2 py-1 flex flex-col justify-between h-[54px]">
+        <div class="flex justify-between items-baseline w-full">
+            <span class="font-bold text-[11px]">快充</span>
+            <span class="text-[9px] opacity-60">30kW</span>
+        </div>
+        <div class="flex justify-between items-end w-full">
+            <div class="flex flex-col items-start leading-none gap-0.5">
+                <span class="text-[10px] font-bold font-mono" id="cost-fast">$1200</span>
+                <span class="text-[8px] font-medium transform scale-95 origin-left">维护$20/日</span>
+            </div>
+            <span class="text-[9px] bg-white/60 px-1.5 py-0.5 rounded text-purple-800 font-bold leading-none shadow-sm mb-0.5" id="count-fast">0</span>
+        </div>
+    </button>
+
+    <button onclick="buyAsset('transformer')" class="btn-3d bg-slate-100 border-slate-300 text-slate-700 rounded-lg px-2 py-1 flex flex-col justify-between h-[54px]">
+        <div class="flex justify-between items-baseline w-full">
+            <span class="font-bold text-[11px]">配电</span>
+            <span class="text-[9px] opacity-60" id="transformer-sub">+20kW</span>
+        </div>
+        <div class="flex justify-between items-end w-full">
+            <div class="flex flex-col items-start leading-none gap-0.5">
+                <span class="text-[10px] font-bold font-mono" id="cost-transformer">$600</span>
+                <span class="text-[8px] font-medium transform scale-95 origin-left">维护$10/日</span>
+            </div>
+            <span class="text-[9px] bg-white/60 px-1.5 py-0.5 rounded text-slate-600 font-bold leading-none shadow-sm mb-0.5" id="count-transformer">0</span>
+        </div>
+    </button>
+
+    <button onclick="buyAsset('solar')" class="btn-3d bg-orange-100 border-orange-300 text-orange-900 rounded-lg px-2 py-1 flex flex-col justify-between h-[54px]">
+        <div class="flex justify-between items-baseline w-full">
+            <span class="font-bold text-[11px]">光伏</span>
+            <span class="text-[9px] opacity-60">10kW</span>
+        </div>
+        <div class="flex justify-between items-end w-full">
+            <div class="flex flex-col items-start leading-none gap-0.5">
+                <span class="text-[10px] font-bold font-mono" id="cost-solar">$600</span>
+                <span class="text-[8px] font-medium transform scale-95 origin-left">维护$10/日</span>
+            </div>
+            <span class="text-[9px] bg-white/60 px-1.5 py-0.5 rounded text-orange-800 font-bold leading-none shadow-sm mb-0.5" id="count-solar">0</span>
+        </div>
+    </button>
+
+    <button onclick="buyAsset('battery')" class="btn-3d bg-emerald-100 border-emerald-300 text-emerald-900 rounded-lg px-2 py-1 flex flex-col justify-between h-[54px]">
+        <div class="flex justify-between items-baseline w-full">
+            <span class="font-bold text-[11px]">储能</span>
+            <span class="text-[9px] opacity-60">100kWh</span>
+        </div>
+        <div class="flex justify-between items-end w-full">
+            <div class="flex flex-col items-start leading-none gap-0.5">
+                <span class="text-[10px] font-bold font-mono" id="cost-battery">$600</span>
+                <span class="text-[8px] font-medium transform scale-95 origin-left">维护$10/日</span>
+            </div>
+            <span class="text-[9px] bg-white/60 px-1.5 py-0.5 rounded text-emerald-800 font-bold leading-none shadow-sm mb-0.5" id="count-battery">0</span>
+        </div>
+    </button>
+
+    <button onclick="buyAsset('marketing')" class="btn-3d bg-pink-100 border-pink-300 text-pink-900 rounded-lg px-2 py-1 flex flex-col justify-between h-[54px]">
+        <div class="flex justify-between items-baseline w-full">
+            <span class="font-bold text-[11px]">推广</span>
+            <span class="text-[9px] opacity-60"></span>
+        </div>
+        <div class="flex justify-between items-end w-full">
+            <div class="flex flex-col items-start leading-none gap-0.5">
+                <span class="text-[10px] font-bold font-mono" id="cost-marketing">$1500</span>
+                <span class="text-[8px] text-pink-700 font-medium transform scale-95 origin-left">增加最大客流</span>
+            </div>
+            <span class="text-[9px] bg-white/60 px-1.5 py-0.5 rounded text-pink-800 font-bold leading-none shadow-sm mb-0.5">+10人</span>
+        </div>
+    </button>
+</div>
     </div>
 
-    <!-- Modals (Start, Event, Bill, GameOver) - unchanged logic structure -->
+    <!-- Modals -->
     <div id="start-modal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm overflow-y-auto">
         <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 max-h-[90vh] overflow-y-auto">
             <h1 class="text-2xl font-black text-slate-800 mb-4 text-center">⚡ 充电站选址规划</h1>
@@ -441,6 +508,78 @@
         </div>
     </div>
 
+    <!-- Loan Modal -->
+    <div id="loan-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-xl font-bold text-slate-800">🏦 银行贷款</h2>
+                <div class="text-xs text-slate-400 bg-slate-100 px-2 py-1 rounded">利率 15%</div>
+            </div>
+
+            <!-- 贷款申请表单 -->
+            <div id="loan-form">
+                <div class="mb-4">
+                    <div class="flex justify-between text-xs font-bold text-slate-600 mb-2">
+                        <span>贷款金额</span>
+                        <span id="loan-amt-val" class="text-blue-600">$2500</span>
+                    </div>
+                    <input type="range" id="loan-amt-slider" min="500" max="5000" step="100" value="2500" oninput="updateLoanPreview()" class="w-full">
+                </div>
+
+                <div class="mb-4">
+                    <div class="flex justify-between text-xs font-bold text-slate-600 mb-2">
+                        <span>贷款时长</span>
+                        <span id="loan-days-val" class="text-blue-600">10天</span>
+                    </div>
+                    <input type="range" id="loan-days-slider" min="3" max="30" step="1" value="10" oninput="updateLoanPreview()" class="w-full">
+                </div>
+
+                <div class="mb-6">
+                    <label class="block text-xs font-bold text-slate-500 mb-2 uppercase">还款方式</label>
+                    <div class="grid grid-cols-2 gap-2">
+                        <div onclick="setLoanType('installment')" id="btn-installment" class="border-2 border-blue-500 bg-blue-50 text-blue-700 rounded-lg p-2 text-center cursor-pointer transition-colors">
+                            <div class="text-xs font-bold">等额本息</div>
+                            <div class="text-[9px] opacity-75">每日定额还款</div>
+                        </div>
+                        <div onclick="setLoanType('principal')" id="btn-principal" class="border border-slate-200 text-slate-600 rounded-lg p-2 text-center cursor-pointer transition-colors">
+                            <div class="text-xs font-bold">等额本金</div>
+                            <div class="text-[9px] opacity-75">首日多，逐日减</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-slate-50 p-3 rounded-xl border border-slate-200 mb-4 text-sm space-y-1">
+                    <div class="flex justify-between">
+                        <span class="text-slate-500 text-xs">总还款额</span>
+                        <span class="font-bold text-slate-800" id="loan-total-repay">$5750</span>
+                    </div>
+                    <div class="flex justify-between items-center pt-1 border-t border-slate-100 mt-1">
+                        <span class="text-slate-500 text-xs">首日需还</span>
+                        <span class="font-bold font-mono text-red-600" id="loan-daily-repay">$575.00</span>
+                    </div>
+                </div>
+
+                <div class="flex gap-2">
+                    <button onclick="closeLoanModal()" class="flex-1 py-2.5 bg-slate-100 text-slate-600 font-bold rounded-xl">取消</button>
+                    <button onclick="takeLoan()" class="flex-1 py-2.5 bg-blue-600 text-white font-bold rounded-xl shadow hover:bg-blue-700">申请贷款</button>
+                </div>
+            </div>
+
+            <!-- 现有贷款状态 -->
+            <div id="loan-status-view" class="hidden">
+                <div class="bg-blue-50 border border-blue-100 p-4 rounded-xl text-center mb-6">
+                    <div class="text-xs text-blue-500 font-bold mb-1">剩余本金</div>
+                    <div class="text-3xl font-mono font-bold text-blue-700 mb-2" id="status-principal">$3000</div>
+                    <div class="text-[10px] text-blue-400">剩余期限: <span id="status-days" class="font-bold text-blue-600">5</span> 天</div>
+                </div>
+                <div class="text-xs text-slate-400 text-center mb-6">
+                    当前有未结清贷款，无法申请新贷款。<br>系统将每日自动扣除还款额。
+                </div>
+                <button onclick="closeLoanModal()" class="w-full py-3 bg-slate-200 text-slate-600 font-bold rounded-xl">关闭</button>
+            </div>
+        </div>
+    </div>
+
     <div id="event-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
         <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 text-center">
             <div class="text-5xl mb-3" id="ev-icon">📢</div>
@@ -495,126 +634,19 @@
 <script>
 // ================= 配置数据 =================
 const CITY_CONFIG = {
-    // 数据来源：2023年中国主要城市EV基础设施表 (Table 1)
-    
-    // 北京 (Beijing)
-    // 谷(Low): 23:00-7:00
-    // 平(Med): 7:00-10:00, 13:00-17:00, 22:00-23:00
-    // 峰(High): 10:00-13:00, 17:00-22:00
-    bj: { 
-        name: "北京", 
-        prices: [
-            // 00-06 (谷)
-            0.35, 0.35, 0.35, 0.35, 0.35, 0.35, 0.35, 
-            // 07-09 (平)
-            0.75, 0.75, 0.75, 
-            // 10-12 (峰 - 午间高峰)
-            1.50, 1.50, 1.50, 
-            // 13-16 (平)
-            0.75, 0.75, 0.75, 0.75, 
-            // 17-21 (峰 - 晚高峰)
-            1.50, 1.50, 1.50, 1.50, 1.50, 
-            // 22 (平)
-            0.75, 
-            // 23 (谷)
-            0.35 
-        ] 
-    },
-
-    // 广州 (Guangzhou)
-    // 谷(Low): 0:00-8:00
-    // 平(Med): 8:00-10:00, 12:00-14:00, 19:00-24:00
-    // 峰(High): 10:00-12:00, 14:00-19:00 (超长下午高峰)
-    gz: { 
-        name: "广州", 
-        prices: [
-            // 00-07 (谷 - 早上8点才结束)
-            0.35, 0.35, 0.35, 0.35, 0.35, 0.35, 0.35, 0.35, 
-            // 08-09 (平)
-            0.75, 0.75, 
-            // 10-11 (峰)
-            1.50, 1.50, 
-            // 12-13 (平 - 午休)
-            0.75, 0.75, 
-            // 14-18 (峰 - 下午极其昂贵)
-            1.50, 1.50, 1.50, 1.50, 1.50, 
-            // 19-23 (平 - 晚上比较友好)
-            0.75, 0.75, 0.75, 0.75, 0.75 
-        ] 
-    },
-
-    // 上海 (Shanghai)
-    // 谷(Low): 22:00-6:00
-    // 平(Med): 6:00-8:00, 11:00-18:00, 21:00-22:00
-    // 峰(High): 8:00-11:00, 18:00-21:00 (典型的早晚双高峰)
-    sh: { 
-        name: "上海", 
-        prices: [
-            // 00-05 (谷)
-            0.35, 0.35, 0.35, 0.35, 0.35, 0.35, 
-            // 06-07 (平)
-            0.75, 0.75, 
-            // 08-10 (峰 - 早高峰)
-            1.50, 1.50, 1.50, 
-            // 11-17 (平 - 白天平稳)
-            0.75, 0.75, 0.75, 0.75, 0.75, 0.75, 0.75, 
-            // 18-20 (峰 - 晚高峰)
-            1.50, 1.50, 1.50, 
-            // 21 (平)
-            0.75, 
-            // 22-23 (谷 - 入夜早)
-            0.35, 0.35 
-        ] 
-    }
+    bj: { name: "北京", prices: [0.35, 0.35, 0.35, 0.35, 0.35, 0.35, 0.35, 0.75, 0.75, 0.75, 1.50, 1.50, 1.50, 0.75, 0.75, 0.75, 0.75, 1.50, 1.50, 1.50, 1.50, 1.50, 0.75, 0.35] },
+    gz: { name: "广州", prices: [0.35, 0.35, 0.35, 0.35, 0.35, 0.35, 0.35, 0.35, 0.75, 0.75, 1.50, 1.50, 0.75, 0.75, 1.50, 1.50, 1.50, 1.50, 1.50, 0.75, 0.75, 0.75, 0.75, 0.75] },
+    sh: { name: "上海", prices: [0.35, 0.35, 0.35, 0.35, 0.35, 0.35, 0.75, 0.75, 1.50, 1.50, 1.50, 0.75, 0.75, 0.75, 0.75, 0.75, 0.75, 0.75, 1.50, 1.50, 1.50, 0.75, 0.35, 0.35] }
 };
 
 const LOC_CONFIG = {
-    // 居民区：早起出门有一波小高潮，白天低谷，傍晚下班回家开始暴涨，半夜逐渐回落
-    res: { 
-        name: "居民区", 
-        // 00-05点: 深夜还有网约车回村或晚归族，但比以前低
-        // 06-08点: 早高峰救急充电
-        // 09-16点: 大家上班去了，空城
-        // 17-23点: 下班回家，高峰期
-        traffic: [
-            0.3, 0.2, 0.1, 0.1, 0.1, 0.2, // 00-05
-            0.4, 0.5, 0.3, 0.2, 0.1, 0.1, // 06-11 (07:00是早高峰)
-            0.1, 0.1, 0.2, 0.3, 0.6, 0.8, // 12-17 (17:00开始下班)
-            0.9, 1.0, 0.9, 0.7, 0.5, 0.4  // 18-23 (19:00是峰值)
-        ] 
-    }, 
-
-    // 商业区：早上没人，中午吃饭小高峰，下午茶平稳，晚上吃饭逛街大高峰
-    com: { 
-        name: "商业区", 
-        // 00-09点: 店铺关门，几无流量
-        // 11-13点: 午餐高峰
-        // 18-21点: 晚餐/电影/购物 绝对晚高峰
-        traffic: [
-            0.05, 0.05, 0.0, 0.0, 0.0, 0.0, // 00-05
-            0.1, 0.2, 0.4, 0.6, 0.8, 0.9,   // 06-11 (10点开门, 11点午餐)
-            0.8, 0.7, 0.7, 0.6, 0.7, 0.9,   // 12-17 (下午稍降, 17点开始回升)
-            1.0, 1.0, 0.9, 0.6, 0.3, 0.1    // 18-23 (18-20点最火爆)
-        ] 
-    }, 
-
-    // 产业园：上班打卡后插枪，白天持续充，下班人去楼空
-    ind: { 
-        name: "就业中心", 
-        // 08-10点: 到达高峰，抢桩最凶的时候
-        // 11-16点: 持续平稳，主要是补电或访客
-        // 18点后:  迅速归零
-        traffic: [
-            0.05, 0.05, 0.05, 0.05, 0.1, 0.2, // 00-05 (夜班极少)
-            0.5, 0.9, 1.0, 0.8, 0.6, 0.5,     // 06-11 (08-09点疯狂涌入)
-            0.5, 0.5, 0.4, 0.3, 0.2, 0.1,     // 12-17 (下午逐渐减少)
-            0.05, 0.05, 0.05, 0.05, 0.05, 0.05 // 18-23 (下班回家了)
-        ] 
-    } 
+    res: { name: "居民区", traffic: [0.3, 0.2, 0.1, 0.1, 0.1, 0.2, 0.4, 0.5, 0.3, 0.2, 0.1, 0.1, 0.1, 0.1, 0.2, 0.3, 0.6, 0.8, 0.9, 1.0, 0.9, 0.7, 0.5, 0.4] }, 
+    com: { name: "商业区", traffic: [0.05, 0.05, 0.0, 0.0, 0.0, 0.0, 0.1, 0.2, 0.4, 0.6, 0.8, 0.9, 0.8, 0.7, 0.7, 0.6, 0.7, 0.9, 1.0, 1.0, 0.9, 0.6, 0.3, 0.1] }, 
+    ind: { name: "就业中心", traffic: [0.05, 0.05, 0.05, 0.05, 0.1, 0.2, 0.5, 0.9, 1.0, 0.8, 0.6, 0.5, 0.5, 0.5, 0.4, 0.3, 0.2, 0.1, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05] } 
 };
 
 const CONFIG = {
-    initialMoney: 3500, // 增加初始资金，降低初期挫败感
+    initialMoney: 3500, 
     dailyCost: { slowCharger: 10, fastCharger: 20, solar: 10, battery: 10, transformer: 10 },
     baseWeeklyRent: 1000,
     rentGrowth: 250, 
@@ -623,69 +655,34 @@ const CONFIG = {
     batteryCap: 100, batteryRate: 20, solarMax: 10, 
     baseLoadLimit: 20, transformerBoost: 20, 
     chargerPower: { slow: 7, fast: 30 },
-    baseDailyPool: 15, // 增加初始客流池，避免白天无车
-weather: {
-        // 修改点：只保留 晴、阴、雨，概率调整为 0.6, 0.3, 0.1
+    baseDailyPool: 15, 
+    weather: {
         types: ['sunny', 'cloudy', 'rainy'],
         probs: [0.6, 0.3, 0.2],
-        eff: { 
-            sunny: 1.0, cloudy: 0.6, rainy: 0.1, 
-            // 下面这几个虽然用不到了，但留着防止报错
-            foggy: 0.4, stormy: 0.0, snowy: 0.25 
-        },
-        icons: { 
-            sunny: '☀️', cloudy: '☁️', rainy: '🌧️', 
-            foggy: '🌫️', stormy: '⛈️', snowy: '❄️' 
-        }
+        eff: { sunny: 1.0, cloudy: 0.6, rainy: 0.1, foggy: 0.4, stormy: 0.0, snowy: 0.25 },
+        icons: { sunny: '☀️', cloudy: '☁️', rainy: '🌧️', foggy: '🌫️', stormy: '⛈️', snowy: '❄️' }
     },
     carEmojis: ['🚗', '🚕', '🚙', '🏎️', '🚓', '🚑', '🚐', '🛻'],
     targetDays: 100
 };
 
-// 辅助函数：生成时间标签
 function generateTimeLabels() {
     const labels = [];
     for (let h = 0; h < 24; h++) {
         for (let m = 0; m < 60; m += 10) {
-            let hStr = h.toString().padStart(2, '0');
-            let mStr = m.toString().padStart(2, '0');
-            labels.push(`${hStr}:${mStr}`);
+            labels.push(`${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`);
         }
     }
     return labels;
 }
-const TIME_LABELS = generateTimeLabels(); // 144个时间点
+const TIME_LABELS = generateTimeLabels();
 
-// === 天气动画状态系统 ===
-const weatherSystem = {
-    sunAngle: 0,
-    clouds: [],
-    rainDrops: [],
-    init: false
-};
-
-// 初始化天气粒子 (只需调用一次)
+const weatherSystem = { sunAngle: 0, clouds: [], rainDrops: [], init: false };
 function initWeatherSystem(w, h) {
-    // 生成云朵 (5朵)
     weatherSystem.clouds = [];
-    for(let i=0; i<5; i++) {
-        weatherSystem.clouds.push({
-            x: Math.random() * w,
-            y: 20 + Math.random() * 60,
-            speed: 0.2 + Math.random() * 0.3,
-            scale: 0.8 + Math.random() * 0.5
-        });
-    }
-    // 生成雨滴 (100个)
+    for(let i=0; i<5; i++) { weatherSystem.clouds.push({ x: Math.random() * w, y: 20 + Math.random() * 60, speed: 0.2 + Math.random() * 0.3, scale: 0.8 + Math.random() * 0.5 }); }
     weatherSystem.rainDrops = [];
-    for(let i=0; i<100; i++) {
-        weatherSystem.rainDrops.push({
-            x: Math.random() * w,
-            y: Math.random() * h,
-            speed: 10 + Math.random() * 10,
-            len: 10 + Math.random() * 15
-        });
-    }
+    for(let i=0; i<100; i++) { weatherSystem.rainDrops.push({ x: Math.random() * w, y: Math.random() * h, speed: 10 + Math.random() * 10, len: 10 + Math.random() * 15 }); }
     weatherSystem.init = true;
 }
 
@@ -693,7 +690,8 @@ function initWeatherSystem(w, h) {
 let state = getInitialState();
 let selectedSettings = { city: 'sh', loc: 'ind', mode: 'std' };
 let modalOpenCount = 0; 
-let myChart = null; // ECharts 实例
+let myChart = null; 
+let loanConfig = { type: 'installment' }; // 'installment' (等额本息) or 'principal' (等额本金)
 
 function getInitialState() {
     return {
@@ -704,17 +702,8 @@ function getInitialState() {
         batteryKwh: 0, price: 1.5, 
         dailyPoolMax: CONFIG.baseDailyPool, dailyPoolLeft: CONFIG.baseDailyPool,
         cars: [], 
-        // battAction: 'idle', 'charge', 'discharge' 用于UI显示
         lastTickData: { load: 0, solar: 0, batt: 0, grid: 0, limit: CONFIG.baseLoadLimit, battAction: 'idle' },
-        
-        // 【新增】图表数据
-        chartData: {
-            solar: new Array(144).fill(null),
-            battery: new Array(144).fill(null),
-            load: new Array(144).fill(null),
-            yesterdayLoad: new Array(144).fill(null)
-        },
-
+        chartData: { solar: new Array(144).fill(null), battery: new Array(144).fill(null), load: new Array(144).fill(null), yesterdayLoad: new Array(144).fill(null) },
         weeksSurvived: 0,
         nextEventTime: null,
         activeBuffs: [],
@@ -724,7 +713,9 @@ function getInitialState() {
         weather: rollWeather(),
         forecast: rollWeather(),
         victoryAchieved: false,
-        settings: { city: 'bj', loc: 'res', mode: 'std' } 
+        settings: { city: 'bj', loc: 'res', mode: 'std' },
+        // 新增贷款状态
+        loan: { active: false, principal: 0, totalRemaining: 0, daysLeft: 0, type: 'installment', originalDays: 0, originalPrincipal: 0 }
     };
 }
 
@@ -735,25 +726,13 @@ function selectOption(type, val) {
     document.querySelectorAll(`.${type}-card`).forEach(el => el.classList.remove('selected'));
     document.querySelector(`.${type}-card[data-val="${val}"]`).classList.add('selected');
 
-if (type === 'city') {
-        const desc = { 
-            // 上海：最友好的曲线
-            sh: "白天有超长平价期(11-18点)，容错率高，适合光伏。", 
-            
-            // 广州：下午是鬼门关
-            gz: "下午(14-19点)电价极高，商业区慎选！晚上较便宜。", 
-            
-            // 北京：晚高峰杀手
-            bj: "晚高峰(17-22点)电价极贵且长，居民区必须配储能！" 
-        };
-        document.getElementById('city-desc').innerText = desc[val];
-
-        // 增加动态颜色提示，增强警示效果
+    if (type === 'city') {
+        const desc = { sh: "白天有超长平价期(11-18点)，容错率高，适合光伏。", gz: "下午(14-19点)电价极高，商业区慎选！晚上较便宜。", bj: "晚高峰(17-22点)电价极贵且长，居民区必须配储能！" };
         const descEl = document.getElementById('city-desc');
+        descEl.innerText = desc[val];
         if(val === 'sh') descEl.className = "text-xs text-green-600 mt-1 font-bold";
         else if(val === 'bj') descEl.className = "text-xs text-red-500 mt-1 font-bold";
         else descEl.className = "text-xs text-slate-400 mt-1";
-
     } else if (type === 'loc') {
         const desc = { res: "晚间需求大", com: "白日需求大", ind: "早晚双高峰" };
         document.getElementById('loc-desc').innerText = desc[val];
@@ -765,48 +744,31 @@ function startGame() {
     state = getInitialState();
     state.settings = { ...selectedSettings };
     
-    // Apply Mode Modifiers
-    if (state.settings.mode === 'jam') {
-        state.dailyPoolMax = 999; state.dailyPoolLeft = 999;
-    } else if (state.settings.mode === 'ghost') {
-        state.dailyPoolMax = 15; state.dailyPoolLeft = 15; // 稍微从10提升
-    } else if (state.settings.mode === 'luxury') {
-        state.dailyPoolMax = 40; state.dailyPoolLeft = 40;
-    } else if (state.settings.mode === 'powerlimit') {
-        state.dailyPoolMax = CONFIG.baseDailyPool; state.dailyPoolLeft = CONFIG.baseDailyPool;
-    } else if (state.settings.mode === 'super') {
+    if (state.settings.mode === 'jam') { state.dailyPoolMax = 999; state.dailyPoolLeft = 999; }
+    else if (state.settings.mode === 'ghost') { state.dailyPoolMax = 15; state.dailyPoolLeft = 15; }
+    else if (state.settings.mode === 'luxury') { state.dailyPoolMax = 40; state.dailyPoolLeft = 40; }
+    else if (state.settings.mode === 'powerlimit') { state.dailyPoolMax = CONFIG.baseDailyPool; state.dailyPoolLeft = CONFIG.baseDailyPool; }
+    else if (state.settings.mode === 'super') {
         const btnSlow = document.getElementById('btn-slow');
-        if (btnSlow) {
-            btnSlow.disabled = true;
-            btnSlow.classList.add('opacity-50');
-        }
+        if (btnSlow) { btnSlow.disabled = true; btnSlow.classList.add('opacity-50'); }
     }
 
     if (state.settings.mode === 'offgrid') {
-        // 遍历所有资产的当前成本，直接打 0.75 折
-        for (let key in state.currentCosts) {
-            state.currentCosts[key] = Math.floor(state.currentCosts[key] * 0.75);
-        }
+        for (let key in state.currentCosts) { state.currentCosts[key] = Math.floor(state.currentCosts[key] * 0.75); }
     }
     if (state.settings.mode === 'rain') {
-        state.weather = 'rainy';
-        state.forecast = 'rainy';
+        state.weather = 'rainy'; state.forecast = 'rainy';
         state.activeBuffs.push({ name: "永恒暴雨", type: 'forcedWeather', val: 'rainy', daysLeft: 9999, icon: '⛈️' });
     }
-    if (state.settings.mode === 'inflation') CONFIG.inflationRate = 1.50;
-    else CONFIG.inflationRate = 1.10;
+    if (state.settings.mode === 'inflation') CONFIG.inflationRate = 1.50; else CONFIG.inflationRate = 1.10;
 
     const transformerLabel = document.getElementById('transformer-sub');
-    if (state.settings.mode === 'powerlimit') transformerLabel.innerText = '+10kW';
-    else transformerLabel.innerText = '+20kW';
+    if (state.settings.mode === 'powerlimit') transformerLabel.innerText = '+10kW'; else transformerLabel.innerText = '+20kW';
 
     scheduleNextEvent();
     updateUI();
-    
-    // 初始化图表
     initChart();
     resizeCanvas();
-    
     setSpeed(500); 
     state.paused = false;
     tick();
@@ -816,72 +778,18 @@ function initChart() {
     const chartDom = document.getElementById('chart-container');
     if (myChart) myChart.dispose();
     myChart = echarts.init(chartDom);
-
     const option = {
-        backgroundColor: 'rgba(255, 255, 255, 0.7)', // 半透明白色背景
-        grid: {
-            left: '5%',    
-            right: '5%',   
-            bottom: '5%', 
-            top: '20%',    
-            containLabel: true
-        },
-        // 已删除 graphic 配置，改为原生 DOM
-        legend: {
-            data: ['昨日', '光伏', '储能', '电网'],
-            top: 2, 
-            textStyle: { color: '#64748b', fontSize: 10 },
-            itemWidth: 10, itemHeight: 8,
-            icon: 'roundRect'
-        },
+        backgroundColor: 'rgba(255, 255, 255, 0.7)',
+        grid: { left: '5%', right: '5%', bottom: '5%', top: '20%', containLabel: true },
+        legend: { data: ['昨日', '光伏', '储能', '电网'], top: 2, textStyle: { color: '#64748b', fontSize: 10 }, itemWidth: 10, itemHeight: 8, icon: 'roundRect' },
         tooltip: { trigger: 'axis' },
-        xAxis: {
-            type: 'category',
-            boundaryGap: false,
-            data: TIME_LABELS,
-            axisLine: { show: false },
-            axisTick: { show: false },
-            axisLabel: { show: true, color: '#94a3b8', fontSize: 9, interval: 23 }
-        },
-        yAxis: {
-            type: 'value',
-            min: 0,
-            splitLine: { show: true, lineStyle: { color: '#e2e8f0', type: 'dashed' } },
-            axisLabel: { color: '#64748b', fontSize: 9, formatter: '{value}' }
-        },
+        xAxis: { type: 'category', boundaryGap: false, data: TIME_LABELS, axisLine: { show: false }, axisTick: { show: false }, axisLabel: { show: true, color: '#94a3b8', fontSize: 9, interval: 23 } },
+        yAxis: { type: 'value', min: 0, splitLine: { show: true, lineStyle: { color: '#e2e8f0', type: 'dashed' } }, axisLabel: { color: '#64748b', fontSize: 9, formatter: '{value}' } },
         series: [
-            // 昨日数据 (灰色虚线)
-            {
-                name: '昨日', type: 'line', data: state.chartData.yesterdayLoad,
-                showSymbol: false, smooth: true, itemStyle: { color: '#94a3b8' },
-                lineStyle: { width: 1.5, type: 'dashed' }, z: 1
-            },
-            // 光伏 (黄色填充)
-            {
-                name: '光伏', type: 'line', data: state.chartData.solar,
-                showSymbol: false, smooth: true, itemStyle: { color: '#facc15' },
-                lineStyle: { width: 0 }, areaStyle: { opacity: 0.3 }, z: 2
-            },
-            // 储能 (绿色)
-            {
-                name: '储能', type: 'line', data: state.chartData.battery,
-                showSymbol: false, smooth: true, itemStyle: { color: '#22c55e' },
-                lineStyle: { width: 1.5 }, z: 3
-            },
-            // 电网 (蓝色，带最大值线)
-            {
-                name: '电网', type: 'line', data: state.chartData.load,
-                showSymbol: false, smooth: true, itemStyle: { color: '#3b82f6' },
-                lineStyle: { width: 1.5 },
-                areaStyle: { 
-                    opacity: 0.15, 
-                    color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-                      { offset: 0, color: 'rgba(59, 130, 246, 0.6)' },
-                      { offset: 1, color: 'rgba(59, 130, 246, 0)' }
-                    ])
-                },
-                z: 4
-            }
+            { name: '昨日', type: 'line', data: state.chartData.yesterdayLoad, showSymbol: false, smooth: true, itemStyle: { color: '#94a3b8' }, lineStyle: { width: 1.5, type: 'dashed' }, z: 1 },
+            { name: '光伏', type: 'line', data: state.chartData.solar, showSymbol: false, smooth: true, itemStyle: { color: '#facc15' }, lineStyle: { width: 0 }, areaStyle: { opacity: 0.3 }, z: 2 },
+            { name: '储能', type: 'line', data: state.chartData.battery, showSymbol: false, smooth: true, itemStyle: { color: '#22c55e' }, lineStyle: { width: 1.5 }, z: 3 },
+            { name: '电网', type: 'line', data: state.chartData.load, showSymbol: false, smooth: true, itemStyle: { color: '#3b82f6' }, lineStyle: { width: 1.5 }, areaStyle: { opacity: 0.15, color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [{ offset: 0, color: 'rgba(59, 130, 246, 0.6)' }, { offset: 1, color: 'rgba(59, 130, 246, 0)' }]) }, z: 4 }
         ]
     };
     myChart.setOption(option);
@@ -897,30 +805,101 @@ function restartGame() {
     if (fxContainer) fxContainer.innerHTML = '';
 }
 
-function continueGame() {
-    closeModal('game-over-modal');
-    state.paused = false;
-    tick();
-}
+function continueGame() { closeModal('game-over-modal'); state.paused = false; tick(); }
 
 function openModal(id) {
     const modal = document.getElementById(id);
     if (modal) {
         modal.classList.remove('hidden');
         modalOpenCount++;
-        if (!state.paused) {
-            state.paused = true;
-            clearTimeout(state.timer);
-        }
+        if (!state.paused) { state.paused = true; clearTimeout(state.timer); }
     }
 }
 
 function closeModal(id) {
     const modal = document.getElementById(id);
-    if (modal) {
-        modal.classList.add('hidden');
-    }
+    if (modal) modal.classList.add('hidden');
     modalOpenCount = Math.max(0, modalOpenCount - 1);
+}
+
+// ================= 贷款系统逻辑 =================
+function openLoanModal() {
+    openModal('loan-modal');
+    if (state.loan.active) {
+        document.getElementById('loan-form').classList.add('hidden');
+        document.getElementById('loan-status-view').classList.remove('hidden');
+        document.getElementById('status-principal').innerText = `$${Math.round(state.loan.principal)}`;
+        document.getElementById('status-days').innerText = state.loan.daysLeft;
+    } else {
+        document.getElementById('loan-form').classList.remove('hidden');
+        document.getElementById('loan-status-view').classList.add('hidden');
+        updateLoanPreview();
+    }
+}
+
+function setLoanType(type) {
+    loanConfig.type = type;
+    document.getElementById('btn-installment').className = type === 'installment' 
+        ? "border-2 border-blue-500 bg-blue-50 text-blue-700 rounded-lg p-2 text-center cursor-pointer transition-colors"
+        : "border border-slate-200 text-slate-600 rounded-lg p-2 text-center cursor-pointer transition-colors";
+        
+    document.getElementById('btn-principal').className = type === 'principal' 
+        ? "border-2 border-blue-500 bg-blue-50 text-blue-700 rounded-lg p-2 text-center cursor-pointer transition-colors"
+        : "border border-slate-200 text-slate-600 rounded-lg p-2 text-center cursor-pointer transition-colors";
+    updateLoanPreview();
+}
+
+function updateLoanPreview() {
+    const amt = parseInt(document.getElementById('loan-amt-slider').value);
+    const days = parseInt(document.getElementById('loan-days-slider').value);
+    document.getElementById('loan-amt-val').innerText = `$${amt}`;
+    document.getElementById('loan-days-val').innerText = `${days}天`;
+
+    const rate = 0.15; // 固定15%服务费率 (为了游戏简单化，视为总利息)
+    const totalRepay = Math.floor(amt * (1 + rate));
+    
+    document.getElementById('loan-total-repay').innerText = `$${totalRepay}`;
+
+    let firstDayRepay = 0;
+    if (loanConfig.type === 'installment') {
+        // 等额本息（简化版）：每天还固定的平均数
+        firstDayRepay = Math.ceil(totalRepay / days);
+    } else {
+        // 等额本金（简化版）：每天还固定的本金 + 剩余本金产生的日利息
+        // 这里为了游戏体验，简化为：首日还款 = (总额 / 天数) * 1.5，之后递减
+        // 实际上这不符合严格数学，但能体现"前期压力大"的特点
+        const base = Math.floor(totalRepay / days);
+        firstDayRepay = Math.floor(base * 1.4); 
+    }
+    document.getElementById('loan-daily-repay').innerText = `$${firstDayRepay}`;
+}
+
+function takeLoan() {
+    const amt = parseInt(document.getElementById('loan-amt-slider').value);
+    const days = parseInt(document.getElementById('loan-days-slider').value);
+    const rate = 0.15; 
+    const totalRepay = Math.floor(amt * (1 + rate));
+
+    state.money += amt;
+    state.loan = {
+        active: true,
+        principal: amt, // 记录原始本金用于计算
+        totalRemaining: totalRepay,
+        daysLeft: days,
+        type: loanConfig.type,
+        originalDays: days,
+        originalPrincipal: amt
+    };
+
+    spawnFloatText(`贷款 +$${amt}`, '#2563eb');
+    closeModal('loan-modal');
+    updateUI();
+    setSpeed(state.lastGameSpeed);
+}
+function closeLoanModal() {
+    closeModal('loan-modal');
+    // 恢复到打开窗口前的速度
+    setSpeed(state.lastGameSpeed); 
 }
 
 // ================= 核心循环 =================
@@ -935,9 +914,7 @@ function tick() {
     state.minute += 10;
     
     let gridPrice = CITY_CONFIG[state.settings.city].prices[state.hour];
-    if (state.settings.mode === 'collapse') {
-        if (state.hour >= 6 && state.hour < 18) gridPrice = 10.0; else gridPrice = 0.2;
-    }
+    if (state.settings.mode === 'collapse') { if (state.hour >= 6 && state.hour < 18) gridPrice = 10.0; else gridPrice = 0.2; }
     if (state.settings.mode === 'offgrid') gridPrice = state.price; 
     
     const discountBuff = state.activeBuffs.find(b => b.type === 'gridDiscount');
@@ -945,9 +922,7 @@ function tick() {
     const gridPriceMultBuff = state.activeBuffs.find(b => b.type === 'gridPriceMult');
     if (gridPriceMultBuff) gridPrice *= gridPriceMultBuff.val;
 
-    // 提高基础概率，改善初期无车体验
-    let trafficProb = LOC_CONFIG[state.settings.loc].traffic[state.hour];
-    trafficProb *= 0.18; // 之前是0.15，提高到0.25
+    let trafficProb = LOC_CONFIG[state.settings.loc].traffic[state.hour] * 0.18;
     if (state.settings.mode === 'ghost') trafficProb *= 0.35;
     if (state.settings.mode === 'jam') trafficProb *= 2;
     if (state.settings.mode === 'luxury') trafficProb *= 2;
@@ -958,7 +933,6 @@ function tick() {
     trySpawnCar(trafficProb);
     processEnergy(gridPrice);
 
-    // 【图表数据更新】
     const timeIndex = state.hour * 6 + (state.minute / 10);
     if (timeIndex >= 0 && timeIndex < 144) {
         const d = state.lastTickData;
@@ -966,26 +940,15 @@ function tick() {
         state.chartData.battery[timeIndex] = d.batt;
         state.chartData.load[timeIndex] = d.grid;
         
-        // 1. 计算当前的动态上限
         let currentLimit = CONFIG.baseLoadLimit + (state.assets.transformer * CONFIG.transformerBoost);
-        if (state.settings.mode === 'powerlimit') {
-             currentLimit = 10 + (state.assets.transformer * 10);
-        }
+        if (state.settings.mode === 'powerlimit') currentLimit = 10 + (state.assets.transformer * 10);
 
-        // 2. 判断是否过载 (需求 > 实际上限)
         const isOverloaded = (d.reqLoad || 0) > currentLimit;
-        
-        // 控制 DOM 警告标签
         const warningEl = document.getElementById('chart-overload-label');
-        if (warningEl) {
-            if (isOverloaded) warningEl.classList.remove('hidden');
-            else warningEl.classList.add('hidden');
-        }
+        if (warningEl) { if (isOverloaded) warningEl.classList.remove('hidden'); else warningEl.classList.add('hidden'); }
 
-        // 控制 电池 状态标签
         const battStatusEl = document.getElementById('chart-batt-status');
-        const battText = document.getElementById('batt-status-text');
-        if (battStatusEl && battText) {
+        if (battStatusEl) {
             if (d.battAction === 'charge') {
                 battStatusEl.classList.remove('hidden');
                 battStatusEl.className = "absolute top-0 left-2 bg-green-50 border border-green-400 text-green-700 text-[9px] font-bold px-2 py-0.5 rounded shadow-sm z-20 flex items-center gap-1 backdrop-blur-sm";
@@ -1000,35 +963,19 @@ function tick() {
         }
 
         if (myChart) {
-             myChart.setOption({
-                yAxis: {
-                    max: Math.max(currentLimit, 5) 
-                },
+            myChart.setOption({
+                yAxis: { max: Math.max(currentLimit, 5) },
                 series: [
-                    { data: state.chartData.yesterdayLoad }, // 保持昨日数据
-                    { data: state.chartData.solar },   // 更新光伏
-                    { data: state.chartData.battery }, // 更新储能
+                    { data: state.chartData.yesterdayLoad },
+                    { data: state.chartData.solar },
+                    { data: state.chartData.battery },
                     { 
-                        // 更新电网数据，并添加动态红线
                         data: state.chartData.load,
                         markLine: {
                             symbol: ['none', 'none'], 
-                            label: {
-                                show: true,
-                                position: 'insideEndTop', 
-                                formatter: 'MAX: {c}kW',  
-                                color: '#ef4444',
-                                fontSize: 9,
-                                fontWeight: 'bold'
-                            },
-                            lineStyle: {
-                                color: '#ef4444',
-                                type: 'dashed',
-                                width: 1
-                            },
-                            data: [
-                                { yAxis: currentLimit } 
-                            ],
+                            label: { show: true, position: 'insideEndTop', formatter: 'MAX: {c}kW', color: '#ef4444', fontSize: 9, fontWeight: 'bold' },
+                            lineStyle: { color: '#ef4444', type: 'dashed', width: 1 },
+                            data: [ { yAxis: currentLimit } ],
                             animation: false
                         }
                     }
@@ -1050,7 +997,6 @@ function tick() {
 
         if (state.hour >= 24) {
             state.hour = 0;
-            state.hour = 0;
             dailySettle();
             if (checkEndGame()) return;
         }
@@ -1069,9 +1015,7 @@ function tick() {
 
 function checkEndGame() {
     if (state.money < 0) { showGameOver(false); return true; }
-    if (state.day > CONFIG.targetDays && !state.victoryAchieved) {
-        state.victoryAchieved = true; showGameOver(true); return true;
-    }
+    if (state.day > CONFIG.targetDays && !state.victoryAchieved) { state.victoryAchieved = true; showGameOver(true); return true; }
     return false;
 }
 
@@ -1097,12 +1041,9 @@ function showGameOver(victory) {
     openModal('game-over-modal');
 }
 
-// ================= 能源逻辑 =================
 function processEnergy(gridPrice) {
     let totalRequestedKw = 0;
-    state.cars.forEach(car => {
-        if (car.kwhReceived < car.kwhNeeded) totalRequestedKw += CONFIG.chargerPower[car.type];
-    });
+    state.cars.forEach(car => { if (car.kwhReceived < car.kwhNeeded) totalRequestedKw += CONFIG.chargerPower[car.type]; });
 
     let limitKw = CONFIG.baseLoadLimit + (state.assets.transformer * CONFIG.transformerBoost);
     if (state.settings.mode === 'powerlimit') limitKw = 10 + (state.assets.transformer * 10);
@@ -1142,7 +1083,6 @@ function processEnergy(gridPrice) {
     let surplusSolar = solarKwh - usedSolarKwh;
     const batMaxKwh = state.assets.battery * CONFIG.batteryCap;
     
-    // 光伏存入电池
     if (surplusSolar > 0 && state.batteryKwh < batMaxKwh) {
         const canStore = batMaxKwh - state.batteryKwh;
         state.batteryKwh += Math.min(surplusSolar, canStore);
@@ -1150,28 +1090,20 @@ function processEnergy(gridPrice) {
 
     let usedBattKwh = 0;
     let gridChargeKwh = 0;
-    let battAction = 'idle'; // for UI
+    let battAction = 'idle';
 
     const batRateKwh = (state.assets.battery * CONFIG.batteryRate) / 6; 
     const batteryEffBuff = state.activeBuffs.find(b => b.type === 'batteryEfficiency');
     let batteryEffMult = batteryEffBuff ? batteryEffBuff.val : 1.0;
 
-    // 【重要逻辑修改】
-    // 充电阈值从0.55降低到0.45。北京的平价电是0.5。
-    // 这意味着：在0.5价格时，如果还有电，会继续放电（赚取1.5 - 0.5 = 1.0 或 1.5 - 0.3 = 1.2 的差价）
-    // 而不是在0.5时充电。只有真正跌到0.3时才充电。
     const CHARGE_THRESHOLD = 0.45; 
 
     if (gridPrice <= CHARGE_THRESHOLD && state.batteryKwh < batMaxKwh) {
-        // 低谷期：充电
         const amt = Math.min(batMaxKwh - state.batteryKwh, batRateKwh * batteryEffMult);
         state.batteryKwh += amt;
         gridChargeKwh = amt;
         battAction = 'charge';
     } else if (state.batteryKwh > 0 && remainDemandKwh > 0) {
-        // 非低谷期：如果有负载，优先放电
-        // 只要当前电价高于充电成本(假设是0.3)，放电就是赚的。
-        // 或者简单点：只要不是必须充电的时刻，就放电。
         const amt = Math.min(state.batteryKwh, batRateKwh * batteryEffMult, remainDemandKwh);
         state.batteryKwh -= amt;
         remainDemandKwh -= amt;
@@ -1195,12 +1127,10 @@ function processEnergy(gridPrice) {
     state.money += profit;
     state.currentDayProfit += profit;
 
-    // 实时利润 UI 提示
     const profitEl = document.getElementById('ui-tick-profit');
     if (profit !== 0) {
         profitEl.innerText = (profit > 0 ? "+" : "") + profit.toFixed(1);
         profitEl.className = `realtime-profit show ${profit > 0 ? 'profit-plus' : 'profit-minus'}`;
-        // reset animation hack
         setTimeout(() => { profitEl.classList.remove('show'); }, 800);
     }
 
@@ -1216,8 +1146,6 @@ function processEnergy(gridPrice) {
         if(Math.random() > 0.7) spawnFloatText(txt, col);
     }
 }
-
-// ================= 事件 & 辅助 =================
 
 function scheduleNextEvent() {
     const offset = 2 + Math.floor(Math.random() * 4); 
@@ -1293,32 +1221,20 @@ function triggerRandomEvent() {
         document.getElementById('ev-amt').innerText = `持续 ${duration} 天`;
         document.getElementById('ev-amt').className = "font-bold text-blue-600";
     } else {
-        // === 👇 修改开始：根据资金动态调整事件池 👇 ===
-        
         let candidateEvents = EVENTS.instant;
-        const currentRent = calcWeeklyRent(); // 获取当前租金
+        const currentRent = calcWeeklyRent(); 
         
-        // 场景1：资金极度危险 (钱 < 租金) -> 只能发生好事
         if (state.money < currentRent) {
             candidateEvents = candidateEvents.filter(e => e.amt > 0);
-        } 
-        // 场景2：资金紧张 (钱 < 1.5倍租金) -> 好事概率增加
-        else if (state.money < currentRent * 1.5) {
-            // 策略：把所有好事(正向事件)额外复制两份加入池子，稀释坏事的占比
+        } else if (state.money < currentRent * 1.5) {
             const goodEvents = candidateEvents.filter(e => e.amt > 0);
             candidateEvents = [...candidateEvents, ...goodEvents, ...goodEvents];
         }
 
-        // 从筛选/加权后的池子中抽取
         ev = candidateEvents[Math.floor(Math.random() * candidateEvents.length)];
         
-        // === 👆 修改结束 👆 ===
-
-        // 下面是之前那个“通货膨胀”的修复逻辑，请保留
         let inflation = 0;
-        if (ev.amt !== 0) {
-             inflation = (ev.amt > 0 ? 1 : -1) * state.day * 5;
-        }
+        if (ev.amt !== 0) { inflation = (ev.amt > 0 ? 1 : -1) * state.day * 5; }
         let amount = ev.amt + inflation;
         
         state.money += amount;
@@ -1348,6 +1264,55 @@ function dailySettle() {
     state.money -= dailyCost;
     spawnFloatText(`日维护 -$${dailyCost}`, '#f97316');
     
+    // === 贷款扣款逻辑 ===
+    if (state.loan.active) {
+        let repayAmount = 0;
+        
+        if (state.loan.type === 'installment') {
+            // 等额本息：每天还款额固定
+            const totalRepay = state.loan.totalRemaining; 
+            const days = state.loan.daysLeft;
+            // 注意：因为totalRemaining包含利息，直接除即可。
+            // 但为了保证能除尽，我们用 ceil 向上取整，最后一天还剩下的
+            if (days === 1) {
+                repayAmount = state.loan.totalRemaining;
+            } else {
+                repayAmount = Math.ceil(state.loan.totalRemaining / days);
+            }
+        } else {
+            // 等额本金：每天还固定本金 + 剩余本金的利息
+            // 简化逻辑：本金部分 + 利息部分
+            // 每天本金 = 原始总还款 / 原始天数 * 0.8 (基础) + 浮动
+            // 简单实现：剩余金额 / 剩余天数 + 一个基于剩余天数的衰减系数
+            // 算了，直接写死一个衰减逻辑：
+            // 每天还款 = (剩余总额 / 剩余天数) * (1 + (剩余天数/原始天数)*0.3)
+            // 这样初期还的多
+             if (state.loan.daysLeft === 1) {
+                repayAmount = state.loan.totalRemaining;
+            } else {
+                const baseAvg = state.loan.totalRemaining / state.loan.daysLeft;
+                const weight = 0.8 + (state.loan.daysLeft / state.loan.originalDays) * 0.4;
+                repayAmount = Math.ceil(baseAvg * weight);
+            }
+        }
+        
+        // 确保不超额
+        repayAmount = Math.min(repayAmount, state.loan.totalRemaining);
+
+        state.money -= repayAmount;
+        state.loan.totalRemaining -= repayAmount;
+        state.loan.daysLeft--;
+        // 估算剩余本金（仅用于展示），按比例扣除
+        state.loan.principal = Math.max(0, state.loan.principal - (state.loan.principal / (state.loan.daysLeft + 1)));
+
+        spawnFloatText(`还贷 -$${repayAmount}`, '#4f46e5');
+
+        if (state.loan.daysLeft <= 0 || state.loan.totalRemaining <= 0) {
+            state.loan.active = false;
+            spawnFloatText("贷款还清!", '#16a34a');
+        }
+    }
+
     if (state.settings.mode === 'jam') state.dailyPoolLeft = 999;
     else if (state.settings.mode === 'ghost') state.dailyPoolLeft = 15;
     else if (state.settings.mode === 'powerlimit') state.dailyPoolLeft = state.dailyPoolMax;
@@ -1356,24 +1321,13 @@ function dailySettle() {
     state.lastDayProfit = state.currentDayProfit - dailyCost;
     state.currentDayProfit = 0;
 
-    // 【每日结算时更新昨日数据】
-    // 将今日load数据复制到yesterdayLoad
     state.chartData.yesterdayLoad = [...state.chartData.load];
-    // 清空今日数据
     state.chartData.load.fill(null);
     state.chartData.solar.fill(null);
     state.chartData.battery.fill(null);
     
-    // 立即更新一次图表，清空视觉
     if(myChart) {
-        myChart.setOption({
-            series: [
-                { data: state.chartData.yesterdayLoad },
-                { data: [] }, 
-                { data: [] }, 
-                { data: [] }
-            ]
-        });
+        myChart.setOption({ series: [ { data: state.chartData.yesterdayLoad }, { data: [] }, { data: [] }, { data: [] } ] });
     }
 
     let rentInterval = 7;
@@ -1386,7 +1340,6 @@ function dailySettle() {
     }
 }
 
-// ================= 辅助逻辑 =================
 function rollWeather() {
     const r = Math.random();
     let cumulativeProb = 0;
@@ -1422,7 +1375,6 @@ function calcWeeklyRent() {
 function trySpawnCar(baseProb) {
     if (state.dailyPoolLeft <= 0) return;
     const totalChargers = state.assets.slowCharger + state.assets.fastCharger;
-    // 增加生成尝试次数，保证有空位时更容易来车
     const spawnAttempts = 2 + Math.floor(totalChargers * 0.8); 
     for (let i = 0; i < spawnAttempts; i++) {
         if (state.dailyPoolLeft <= 0) break;
@@ -1442,9 +1394,7 @@ function attemptSingleSpawn(baseProb) {
         acceptChance = 0.2 / (excess * 2 + 1); 
     } else {
         if (myPrice <= 1.2) acceptChance = 1.0;
-        else {
-            const t = (myPrice - 1.2) / 0.8; acceptChance = 1.0 - (t * 0.7); 
-        }
+        else { const t = (myPrice - 1.2) / 0.8; acceptChance = 1.0 - (t * 0.7); }
     }
     if (state.settings.mode === 'luxury') acceptChance = Math.min(1.0, acceptChance * 1.3); 
 
@@ -1548,17 +1498,41 @@ function updateUI() {
     const wRent = calcWeeklyRent();
     document.getElementById('ui-weekly-rent').innerText = `-$${wRent}`;
     
+    // 更新贷款卡片
+    const loanCard = document.getElementById('card-loan-status');
+    const loanPaymentEl = document.getElementById('ui-loan-payment');
+    
+    if (state.loan.active) {
+        loanCard.className = "stat-card border-t-4 border-indigo-500 bg-indigo-50/50 cursor-pointer";
+        // 估算今日还款额（用于显示）
+        let estimate = 0;
+        if (state.loan.type === 'installment') estimate = Math.ceil(state.loan.totalRemaining / state.loan.daysLeft);
+        else {
+             // 简单估算：展示逻辑与结算逻辑一致
+             if(state.loan.daysLeft === 1) estimate = state.loan.totalRemaining;
+             else {
+                 const baseAvg = state.loan.totalRemaining / state.loan.daysLeft;
+                 const weight = 0.8 + (state.loan.daysLeft / state.loan.originalDays) * 0.4;
+                 estimate = Math.ceil(baseAvg * weight);
+             }
+        }
+        loanPaymentEl.innerText = `-$${estimate}`;
+    } else {
+        loanCard.className = "stat-card border-t-4 border-slate-300 opacity-60 cursor-pointer";
+        loanPaymentEl.innerText = "--";
+    }
+
     const daysLeft = 8 - ((state.day - 1) % 7 + 1);
-    let rentLabel = '周租金';
+    let rentLabel = '周租';
     if(state.settings.mode === 'shark') {
         const sharkDaysLeft = 4 - ((state.day - 1) % 3 + 1);
-        document.getElementById('ui-rent-countdown').innerText = sharkDaysLeft === 1 ? '明日' : `${sharkDaysLeft}天`;
+        document.getElementById('ui-rent-countdown').innerText = sharkDaysLeft === 1 ? '明日' : `${sharkDaysLeft}d`;
         rentLabel = '高利贷';
     } else {
-        document.getElementById('ui-rent-countdown').innerText = daysLeft === 1 ? '明日' : `${daysLeft}天`;
+        document.getElementById('ui-rent-countdown').innerText = daysLeft === 1 ? '明日' : `${daysLeft}d`;
     }
-    document.querySelector('#ui-weekly-rent').previousElementSibling.querySelector('span:first-child').innerText = rentLabel;
-
+    // Update label text logic if needed, currently fixed in HTML structure or controlled here
+    
     const transformerLabel = document.getElementById('transformer-sub');
     if (state.settings.mode === 'powerlimit') transformerLabel.innerText = '+10kW';
     else transformerLabel.innerText = '+20kW';
@@ -1599,9 +1573,7 @@ function updateUI() {
     document.getElementById('ui-forecast').innerText = `明:${fIcon}`;
 
     let gp = CITY_CONFIG[state.settings.city].prices[state.hour];
-    if (state.settings.mode === 'collapse') {
-        if (state.hour >= 6 && state.hour < 18) gp = 10.0; else gp = 0.2;
-    }
+    if (state.settings.mode === 'collapse') { if (state.hour >= 6 && state.hour < 18) gp = 10.0; else gp = 0.2; }
     if (state.settings.mode === 'offgrid') gp = state.price; 
     const discountBuff = state.activeBuffs.find(b => b.type === 'gridDiscount');
     if (discountBuff) gp *= discountBuff.val;
@@ -1624,7 +1596,6 @@ function updateUI() {
     document.getElementById('bar-batt').style.width = `${pBatt}%`;
     document.getElementById('bar-grid').style.width = `${pGrid}%`;
     
-    // 电池条上的文字
     const battBar = document.getElementById('bar-batt');
     if (d.battAction === 'charge') battBar.innerText = '⚡';
     else if (d.battAction === 'discharge') battBar.innerText = '🔋';
@@ -1650,8 +1621,11 @@ function updateUI() {
         const raw = state.currentCosts[type];
         const actual = getAssetCost(type);
         const el = document.getElementById(elId);
-        if (actual < raw) el.innerHTML = `<span class="original-price">$${raw}</span> <span class="discount-price">$${actual}</span>`;
-        else el.innerText = `$${raw}`;
+        if (actual < raw) {
+            el.innerHTML = `<span class="opacity-50 line-through text-[8px] mr-1">$${raw}</span><span>$${actual}</span>`;
+        } else {
+            el.innerText = `$${raw}`;
+        }
     };
 
     updateCostDisplay('slowCharger', 'cost-slow');
@@ -1702,12 +1676,6 @@ function resizeCanvas() {
     const requiredHeight = 110 + (rows * 85); 
     const displayHeight = Math.max(minHeight, requiredHeight);
     
-    // 只有当需要更多空间时才扩展，否则保持 flex 自适应
-    if (wrapper.clientHeight < displayHeight) {
-       // wrapper.style.minHeight = displayHeight + 'px'; 
-    }
-
-    // Canvas 填满 wrapper
     const rect = wrapper.getBoundingClientRect();
     canvas.width = rect.width * dpr;
     canvas.height = rect.height * dpr;
@@ -1725,109 +1693,63 @@ window.addEventListener('resize', resizeCanvas);
 
 function draw() {
     if (!canvasWidth) return;
-    
-    // 初始化粒子系统(如果还没初始化)
     if (!weatherSystem.init) initWeatherSystem(canvasWidth, canvasHeight);
-
     ctx.clearRect(0, 0, canvasWidth, canvasHeight);
     
     const h = state.hour;
     const w = state.weather;
-    
-    // --- 1. 绘制动态天空 (渐变色) ---
     let bgGrad = ctx.createLinearGradient(0, 0, 0, canvasHeight);
     
     if (h < 6 || h >= 19) {
-        // 夜晚: 深蓝 -> 黑
-        bgGrad.addColorStop(0, '#0f172a');
-        bgGrad.addColorStop(1, '#020617');
+        bgGrad.addColorStop(0, '#0f172a'); bgGrad.addColorStop(1, '#020617');
     } else {
-        // 白天根据天气改变基调
-        if (w === 'sunny') {
-            // 晴天: 鲜艳的天蓝 -> 浅蓝
-            bgGrad.addColorStop(0, '#38bdf8'); 
-            bgGrad.addColorStop(1, '#bae6fd'); 
-        } else if (w === 'cloudy') {
-            // 阴天: 灰蓝 -> 灰白
-            bgGrad.addColorStop(0, '#94a3b8'); 
-            bgGrad.addColorStop(1, '#e2e8f0'); 
-        } else if (w === 'rainy') {
-            // 下雨: 深灰 -> 灰
-            bgGrad.addColorStop(0, '#475569'); 
-            bgGrad.addColorStop(1, '#64748b'); 
-        }
+        if (w === 'sunny') { bgGrad.addColorStop(0, '#38bdf8'); bgGrad.addColorStop(1, '#bae6fd'); } 
+        else if (w === 'cloudy') { bgGrad.addColorStop(0, '#94a3b8'); bgGrad.addColorStop(1, '#e2e8f0'); } 
+        else if (w === 'rainy') { bgGrad.addColorStop(0, '#475569'); bgGrad.addColorStop(1, '#64748b'); }
     }
     ctx.fillStyle = bgGrad;
     ctx.fillRect(0, 0, canvasWidth, canvasHeight);
 
-    // --- 2. 绘制天体 (太阳/月亮) ---
     const celestialX = canvasWidth - 60;
     const celestialY = 60;
     
     if (h < 6 || h >= 19) {
-        // 🌙 月亮
-        ctx.fillStyle = '#fefce8';
-        ctx.shadowColor = '#fefce8';
-        ctx.shadowBlur = 20;
+        ctx.fillStyle = '#fefce8'; ctx.shadowColor = '#fefce8'; ctx.shadowBlur = 20;
         ctx.beginPath(); ctx.arc(celestialX, celestialY, 25, 0, Math.PI*2); ctx.fill();
-        ctx.shadowBlur = 0; // 重置阴影
-        // 月坑纹理
+        ctx.shadowBlur = 0; 
         ctx.fillStyle = 'rgba(200,200,200,0.2)';
         ctx.beginPath(); ctx.arc(celestialX-8, celestialY-5, 6, 0, Math.PI*2); ctx.fill();
         ctx.beginPath(); ctx.arc(celestialX+10, celestialY+8, 4, 0, Math.PI*2); ctx.fill();
     } else {
-        // ☀️ 太阳 (仅在非雨天或小雨时明显)
         if (w !== 'rainy') {
-            // 旋转光芒 (Sunny 特效)
             if (w === 'sunny') {
-                weatherSystem.sunAngle += 0.005; // 旋转动画
+                weatherSystem.sunAngle += 0.005;
                 ctx.save();
                 ctx.translate(celestialX, celestialY);
                 ctx.rotate(weatherSystem.sunAngle);
                 ctx.fillStyle = 'rgba(255, 255, 255, 0.2)';
                 for(let i=0; i<8; i++) {
-                    ctx.beginPath();
-                    ctx.moveTo(0, 0);
-                    ctx.lineTo(-10, -80);
-                    ctx.lineTo(10, -80);
-                    ctx.fill();
-                    ctx.rotate(Math.PI / 4);
+                    ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(-10, -80); ctx.lineTo(10, -80); ctx.fill(); ctx.rotate(Math.PI / 4);
                 }
                 ctx.restore();
             }
-
-            // 太阳本体
-            ctx.fillStyle = '#fbbf24'; // 琥珀色核心
-            if (w === 'sunny') {
-                ctx.shadowColor = '#fbbf24';
-                ctx.shadowBlur = 40; // 强光晕
-            }
+            ctx.fillStyle = '#fbbf24'; 
+            if (w === 'sunny') { ctx.shadowColor = '#fbbf24'; ctx.shadowBlur = 40; }
             ctx.beginPath(); ctx.arc(celestialX, celestialY, 30, 0, Math.PI*2); ctx.fill();
             ctx.shadowBlur = 0;
-            
-            // 高光
             ctx.fillStyle = 'rgba(255,255,255,0.3)';
             ctx.beginPath(); ctx.arc(celestialX-10, celestialY-10, 8, 0, Math.PI*2); ctx.fill();
         }
     }
 
-    // --- 3. 绘制天气特效 (云/雨) ---
-
-    // ☁️ 阴天/雨天：绘制动态云层
     if (w === 'cloudy' || w === 'rainy') {
         const cloudColor = w === 'rainy' ? 'rgba(51, 65, 85, 0.8)' : 'rgba(255, 255, 255, 0.6)';
-        
         weatherSystem.clouds.forEach(cloud => {
-            // 移动云朵
             cloud.x += cloud.speed;
-            if (cloud.x > canvasWidth + 100) cloud.x = -100; // 循环
-
+            if (cloud.x > canvasWidth + 100) cloud.x = -100;
             ctx.fillStyle = cloudColor;
             ctx.beginPath();
-            // 用三个圆拼成一朵云
-            const cx = cloud.x;
-            const cy = cloud.y;
-            const s = cloud.scale;
+            const cx = cloud.x; const cy = cloud.y; const s = cloud.scale;
             ctx.arc(cx, cy, 30*s, 0, Math.PI * 2); 
             ctx.arc(cx + 40*s, cy - 10*s, 35*s, 0, Math.PI * 2);
             ctx.arc(cx + 80*s, cy + 5*s, 28*s, 0, Math.PI * 2);
@@ -1835,65 +1757,27 @@ function draw() {
         });
     }
 
-    // 🌧️ 雨天：绘制下落雨滴
     if (w === 'rainy') {
         ctx.strokeStyle = 'rgba(203, 213, 225, 0.6)';
         ctx.lineWidth = 1.5;
-        
         weatherSystem.rainDrops.forEach(drop => {
             drop.y += drop.speed;
-            drop.x -= 1; // 稍微向左倾斜
-            
-            // 循环重置
-            if (drop.y > canvasHeight) {
-                drop.y = -20;
-                drop.x = Math.random() * canvasWidth;
-            }
-
-            ctx.beginPath();
-            ctx.moveTo(drop.x, drop.y);
-            ctx.lineTo(drop.x - 2, drop.y + drop.len); // 倾斜的线
-            ctx.stroke();
-            
-            // 落地溅射 (偶尔画一下)
+            drop.x -= 1; 
+            if (drop.y > canvasHeight) { drop.y = -20; drop.x = Math.random() * canvasWidth; }
+            ctx.beginPath(); ctx.moveTo(drop.x, drop.y); ctx.lineTo(drop.x - 2, drop.y + drop.len); ctx.stroke();
             if (drop.y > canvasHeight - 50 && Math.random() > 0.8) {
                 ctx.fillStyle = 'rgba(255,255,255,0.5)';
-                ctx.beginPath();
-                ctx.ellipse(drop.x, canvasHeight-10, 5, 2, 0, 0, Math.PI*2);
-                ctx.fill();
+                ctx.beginPath(); ctx.ellipse(drop.x, canvasHeight-10, 5, 2, 0, 0, Math.PI*2); ctx.fill();
             }
         });
     }
     
-    // --- 4. 绘制建筑 (保持原样) ---
     drawHub(10, 10); 
     drawChargers();
 }
 
-function drawRain() {
-    ctx.strokeStyle = 'rgba(148, 163, 184, 0.6)';
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    const rainCount = 80;
-    for(let i=0; i<rainCount; i++) {
-        const x = Math.random() * canvasWidth;
-        const y = Math.random() * canvasHeight;
-        const len = 10 + Math.random() * 15;
-        ctx.moveTo(x, y); ctx.lineTo(x - 5, y + len); 
-    }
-    ctx.stroke();
-}
-
 function drawHub(x, y) {
-    // 移除边框和背景的绘制
-    // ctx.fillStyle = '#ffffff'; 
-    // ctx.strokeStyle='#94a3b8'; 
-    // ctx.lineWidth=2;
-    // ctx.beginPath(); ctx.roundRect(x, y, 200, 70, 8); ctx.fill(); ctx.stroke();
-
-    // 绘制标题和信息，直接写在透明背景上
     ctx.fillStyle = '#64748b'; ctx.font = 'bold 10px sans-serif';
-    // 稍微向上移动标题位置
     ctx.fillText(CITY_CONFIG[state.settings.city].name + ' · 能源中心', x + 10, y + 5); 
 
     const eff = (state.hour >= 6 && state.hour <= 18) ? Math.sin((state.hour-6)/12*Math.PI) : 0;
@@ -1903,12 +1787,9 @@ function drawHub(x, y) {
     if(forced) weatherEff = CONFIG.weather.eff[forced.val];
     if(boosted) weatherEff *= boosted.val;
     
-    // 光伏部分
     ctx.fillStyle = '#eab308'; 
-    // 稍微向上移动光伏文字位置
     ctx.fillText(`光伏 ${state.assets.solar}`, x+10, y+25); 
-    // 缩小光伏条的高度和背景填充
-    ctx.fillStyle = '#fef08a'; ctx.fillRect(x+10, y+30, 60, 3); // 高度从 5 减为 3
+    ctx.fillStyle = '#fef08a'; ctx.fillRect(x+10, y+30, 60, 3); 
     
     const badWeathers = ['rainy', 'stormy', 'snowy', 'foggy', 'sandstorm', 'acid_rain', 'smog'];
     if (badWeathers.includes(state.weather)) ctx.fillStyle = '#94a3b8'; 
@@ -1916,34 +1797,28 @@ function drawHub(x, y) {
     else ctx.fillStyle = '#eab308'; 
 
     const barWidth = 60 * eff * weatherEff;
-    ctx.fillRect(x+10, y+30, Math.min(60, barWidth), 3); // 高度从 5 减为 3
-    if (barWidth > 60) { ctx.fillStyle = '#ef4444'; ctx.fillRect(x+70, y+28, 4, 7); } // 调整警告图标高度
+    ctx.fillRect(x+10, y+30, Math.min(60, barWidth), 3); 
+    if (barWidth > 60) { ctx.fillStyle = '#ef4444'; ctx.fillRect(x+70, y+28, 4, 7); } 
 
-    // 储能部分
     const max = state.assets.battery * CONFIG.batteryCap;
     const pct = max > 0 ? state.batteryKwh/max : 0;
     ctx.fillStyle = '#22c55e';
-    // 稍微向上移动储能文字位置
     ctx.fillText(`储能 ${state.assets.battery}`, x+100, y+25); 
-    // 缩小储能条的高度和尺寸
     ctx.strokeStyle = '#64748b'; ctx.lineWidth=1; 
-    ctx.strokeRect(x+100, y+30, 30, 7); // 宽度从 40 减为 30，高度从 10 减为 7
-    ctx.fillRect(x+132, y+32, 2, 3); // 调整电池头尺寸
+    ctx.strokeRect(x+100, y+30, 30, 7); 
+    ctx.fillRect(x+132, y+32, 2, 3); 
     
     ctx.fillStyle = pct<0.2 ? '#ef4444' : '#22c55e';
-    ctx.fillRect(x+101, y+31, 28*pct, 5); // 调整内部填充尺寸
-    
-    ctx.fillStyle = '#64748b'; ctx.font='8px sans-serif'; // 缩小字体
-    ctx.fillText(max>0 ? `${state.batteryKwh.toFixed(0)}/${max}` : '', x+140, y+36); // 调整位置
+    ctx.fillRect(x+101, y+31, 28*pct, 5); 
+    ctx.fillStyle = '#64748b'; ctx.font='8px sans-serif'; 
+    ctx.fillText(max>0 ? `${state.batteryKwh.toFixed(0)}/${max}` : '', x+140, y+36); 
 }
 
 function drawChargers() {
     const startX = 20;
-    const startY = 70; // 配合之前上移的操作
-    
-    // 【修改点1】缩小行列间距
-    const gapX = 35; // 原来 50 -> 35
-    const gapY = 55; // 原来 80 -> 55
+    const startY = 70; 
+    const gapX = 35; 
+    const gapY = 55; 
     
     const cols = Math.floor((canvasWidth - 40) / gapX); 
 
@@ -1953,40 +1828,32 @@ function drawChargers() {
         const x = startX + col * gapX;
         const y = startY + row * gapY;
 
-        // 【修改点2】缩小充电桩本体 (22x36)
         ctx.fillStyle = 'rgba(0,0,0,0.05)';
-        // 缩小阴影
         ctx.beginPath(); ctx.ellipse(x+11, y+38, 10, 4, 0, 0, Math.PI*2); ctx.fill();
         
         ctx.fillStyle = '#fff'; ctx.strokeStyle = '#94a3b8'; ctx.lineWidth = 1.5;
-        // 缩小矩形：从 30x50 -> 22x36
         ctx.fillRect(x, y, 22, 36); ctx.strokeRect(x, y, 22, 36);
         
         ctx.fillStyle = type === 'slow' ? '#3b82f6' : '#a855f7';
-        // 缩小顶部颜色条
         ctx.fillRect(x+2, y+2, 18, 3);
 
         const car = state.cars.find(c => c.type === type && c.slot === idx);
         if (car) {
-            // 【修改点3】缩小 Emoji 汽车 (16px)
-            ctx.font = '16px sans-serif'; // 原来 24px
+            ctx.font = '16px sans-serif'; 
             ctx.textAlign = 'center';
             ctx.fillStyle = '#000'; 
-            ctx.fillText(car.emoji, x+11, y+26); // 调整中心点 x+11
+            ctx.fillText(car.emoji, x+11, y+26); 
             ctx.textAlign = 'start'; 
 
             const pct = Math.min(1, car.kwhReceived / car.kwhNeeded);
-            // 缩小进度条
-            ctx.fillStyle = '#374151'; ctx.fillRect(x-2, y+30, 26, 3); // 移到底部，宽度减小
+            ctx.fillStyle = '#374151'; ctx.fillRect(x-2, y+30, 26, 3); 
             ctx.fillStyle = '#4ade80'; ctx.fillRect(x-2, y+30, 26 * pct, 3);
             
             if (!state.paused) {
                 ctx.strokeStyle = '#22c55e'; ctx.lineWidth = 1;
-                // 缩短连线
                 ctx.beginPath(); ctx.moveTo(x+11, y+10); ctx.lineTo(x+11, y+18); ctx.stroke();
             }
         } else {
-            // 缩小"空"字
             ctx.fillStyle = '#cbd5e1'; ctx.font = '8px sans-serif';
             ctx.textAlign = 'center'; ctx.fillText('空', x+11, y+22); ctx.textAlign = 'start';
         }
@@ -1996,7 +1863,6 @@ function drawChargers() {
     for (let i = 0; i < state.assets.slowCharger; i++) render('slow', i, count++);
     for (let i = 0; i < state.assets.fastCharger; i++) render('fast', i, count++);
 }
-// ================= 交互函数 =================
 
 function closeEventModal() {
     closeModal('event-modal'); 
@@ -2013,25 +1879,19 @@ function showBillModal() {
     document.getElementById('bill-rent').innerText = `-$${rent.toFixed(2)}`;
     document.getElementById('bill-final').innerText = `$${final.toFixed(2)}`;
     
-    // 如果结余为负，标红显示
     const finalEl = document.getElementById('bill-final');
-    if (final < 0) {
-        finalEl.className = "font-mono font-bold text-red-600";
-    } else {
-        finalEl.className = "font-mono font-bold text-green-600";
-    }
+    if (final < 0) finalEl.className = "font-mono font-bold text-red-600";
+    else finalEl.className = "font-mono font-bold text-green-600";
 
-    const billModal = document.getElementById('bill-modal');
-    if (billModal) billModal.classList.remove('hidden');
+    openModal('bill-modal'); 
 }
 
 function payBill() {
     state.money -= state.pendingRent;
     state.pendingRent = 0;
     state.weeksSurvived++; 
-    const billModal = document.getElementById('bill-modal');
-    if (billModal) billModal.classList.add('hidden');
-    checkEndGame();
+    closeModal('bill-modal');
+    if (checkEndGame()) return;
     if (state.money >= 0) setSpeed(state.lastGameSpeed); 
 }
 
@@ -2039,21 +1899,16 @@ function updatePrice(v) {
     state.price = parseFloat(v);
     document.getElementById('price-display').innerText = `$${state.price.toFixed(2)}`;
 }
-// === 新增：滑块微调逻辑 ===
+
 function adjustPrice(delta) {
     let newVal = state.price + delta;
-    // 限制范围
     newVal = Math.max(0.5, Math.min(3.0, newVal));
-    // 解决浮点数精度问题 (例如 1.1 + 0.1 = 1.20000002)
     newVal = Math.round(newVal * 10) / 10;
-    
-    // 更新状态
     updatePrice(newVal);
-    
-    // 同步更新滑块 UI 的位置
     const slider = document.getElementById('price-slider');
     if (slider) slider.value = newVal;
 }
+
 function setSpeed(ms) {
     document.querySelectorAll('.speed-btn').forEach(btn => {
         btn.classList.remove('bg-white', 'text-blue-600', 'shadow-sm');
@@ -2087,7 +1942,6 @@ function setSpeed(ms) {
     updateUI();
 }
 
-// Start with modal open
 openModal('start-modal');
 </script>
 </body>
