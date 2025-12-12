@@ -645,14 +645,6 @@ button,
     }
 }, { passive: false });
 
-let lastTouchEnd = 0;
-document.addEventListener('touchend', function (event) {
-    const now = (new Date()).getTime();
-    if (now - lastTouchEnd <= 300) {
-        event.preventDefault(); // 300ms内的连续点击被视为双击，拦截掉
-    }
-    lastTouchEnd = now;
-}, false);
 // ================= 配置数据 =================
 // 日利率 2% (0.02)。你可以根据难度调整，比如简单0.01，困难0.03
 const LOAN_DAILY_RATE = 0.05;
@@ -878,28 +870,63 @@ function updateLoanPreview() {
     document.getElementById('loan-amt-val').innerText = `$${amt}`;
     document.getElementById('loan-days-val').innerText = `${days}天`;
 
-    // === 新增：日利率计算逻辑 (等额本息公式 PMT) ===
     const r = LOAN_DAILY_RATE;
-    // 公式: 每期还款 = 本金 * [利率 * (1+利率)^期数] / [(1+利率)^期数 - 1]
-    const pow = Math.pow(1 + r, days);
-    const dailyPayment = (amt * r * pow) / (pow - 1);
-    
-    const totalRepay = dailyPayment * days;
+    let firstDayPayment = 0;
+    let totalRepay = 0;
 
-    // 更新 UI
-    document.getElementById('loan-total-repay').innerText = `$${Math.ceil(totalRepay)}`;
-    document.getElementById('loan-daily-repay').innerText = `$${Math.ceil(dailyPayment)}`;
-    
-    // 存储预览数据供 takeLoan 使用
-    window.previewLoanData = {
-        principal: amt,
-        days: days,
-        dailyPayment: Math.ceil(dailyPayment),
-        totalRepay: Math.ceil(totalRepay)
-    };
+    // 获取当前选中的模式 (需要在 setLoanType 中更新 loanConfig.type)
+    // 如果没有 loanConfig 全局变量，请在顶部声明 let loanConfig = { type: 'installment' };
+    const type = loanConfig.type; 
+
+    if (type === 'installment') {
+        // === 等额本息 (每天还一样的钱) ===
+        // 公式: 每日还款 = P * [r * (1+r)^n] / [(1+r)^n - 1]
+        const pow = Math.pow(1 + r, days);
+        const dailyPayment = (amt * r * pow) / (pow - 1);
+        
+        firstDayPayment = Math.ceil(dailyPayment);
+        totalRepay = Math.ceil(dailyPayment * days);
+        
+        // 预览数据
+        window.previewLoanData = {
+            principal: amt,
+            days: days,
+            fixedDaily: Math.ceil(dailyPayment), // 存下来，以后每天扣这个数
+            totalRepay: totalRepay,
+            type: 'installment'
+        };
+
+    } else {
+        // === 等额本金 (首日还最多，逐日递减) ===
+        // 每日固定还本金 = 总本金 / 天数
+        const dailyPrincipal = amt / days;
+        
+        // 首日利息 = 总本金 * 利率
+        const firstDayInterest = amt * r;
+        
+        firstDayPayment = Math.ceil(dailyPrincipal + firstDayInterest);
+        
+        // 总还款额 = 本金 + 总利息
+        // 等额本金的总利息公式 = (n+1) * amt * r / 2
+        const totalInterest = (days + 1) * amt * r / 2;
+        totalRepay = Math.ceil(amt + totalInterest);
+
+        // 预览数据
+        window.previewLoanData = {
+            principal: amt,
+            days: days,
+            dailyBasePrincipal: dailyPrincipal, // 每天雷打不动还这么多本金
+            totalRepay: totalRepay,
+            type: 'principal'
+        };
+    }
+
+    // 更新界面显示
+    document.getElementById('loan-total-repay').innerText = `$${totalRepay}`;
+    document.getElementById('loan-daily-repay').innerText = `$${firstDayPayment}`;
 }
+
 function takeLoan() {
-    // 使用预览计算好的数据
     const data = window.previewLoanData;
     if (!data) return;
 
@@ -907,15 +934,22 @@ function takeLoan() {
     
     state.loan = {
         active: true,
-        principal: data.principal,           // 当前剩余本金
-        dailyPayment: data.dailyPayment,     // 每日固定还款额
-        daysLeft: data.days,                 // 剩余天数
-        type: 'installment',                 // 既然用了PMT，就统一为等额本息方便理解
-        totalRepaid: 0                       // 记录已还金额（统计用）
+        type: data.type,
+        
+        // 通用数据
+        principal: data.principal,       // 当前剩余本金
+        daysLeft: data.days,             // 剩余天数
+        originalDays: data.days,         // 原始天数（计算等额本金利息需要）
+        
+        // 等额本息专用数据
+        fixedDaily: data.fixedDaily || 0,
+        
+        // 等额本金专用数据
+        dailyBasePrincipal: data.dailyBasePrincipal || 0
     };
 
     spawnFloatText(`贷款 +$${data.principal}`, '#2563eb');
-    closeLoanModal(); // 使用我们之前修复的函数
+    closeLoanModal(); 
     updateUI();
 }
 
@@ -1289,30 +1323,47 @@ function dailySettle() {
     
     // === 贷款扣款逻辑 ===
 // === 贷款扣款逻辑 (日利率版) ===
+// === 贷款扣款逻辑 (修复版) ===
     if (state.loan.active) {
-        // 1. 获取每日固定还款额
-        let payAmount = state.loan.dailyPayment;
+        let payAmount = 0;
+        let interestPart = 0;
+        let principalPart = 0;
 
-        // 2. 扣钱
-        // 如果钱不够，就扣光（导致破产），这里简单处理为直接扣
+        if (state.loan.type === 'installment') {
+            // [等额本息]：每天扣固定金额
+            payAmount = state.loan.fixedDaily;
+            
+            // 倒推利息用于显示：利息 = 剩余本金 * 利率
+            interestPart = state.loan.principal * LOAN_DAILY_RATE;
+            principalPart = payAmount - interestPart;
+        } else {
+            // [等额本金]：每天扣 (固定本金 + 剩余本金产生的利息)
+            principalPart = state.loan.dailyBasePrincipal;
+            interestPart = state.loan.principal * LOAN_DAILY_RATE;
+            
+            // 为了防止最后一天浮点数误差，如果是最后一天，直接还清剩余本金
+            if (state.loan.daysLeft === 1) {
+                principalPart = state.loan.principal;
+            }
+            
+            payAmount = Math.ceil(principalPart + interestPart);
+        }
+
+        // 执行扣款
         state.money -= payAmount;
         
-        // 3. 计算利息部分和本金部分 (仅用于数据追踪，实际上PMT模型下无需每日重算，只需倒扣天数)
-        // 当天利息 = 剩余本金 * 日利率
-        const interestToday = state.loan.principal * LOAN_DAILY_RATE;
-        const principalRepaid = payAmount - interestToday;
-
-        // 4. 更新剩余本金
-        state.loan.principal -= principalRepaid;
+        // 更新贷款状态
+        state.loan.principal -= principalPart; // 扣除本金
+        // 修正本金可能出现的微小负数（浮点误差）
+        if(state.loan.principal < 0) state.loan.principal = 0;
+        
         state.loan.daysLeft--;
-        state.loan.totalRepaid += payAmount;
 
-        // 浮动文字显示详情
-        spawnFloatText(`还贷 -$${payAmount} (息$${interestToday.toFixed(0)})`, '#4f46e5');
+        // 浮动文字
+        spawnFloatText(`还贷 -$${payAmount} (息$${interestPart.toFixed(0)})`, '#4f46e5');
 
-        // 5. 检查是否还清
-        // 如果天数到了，或者本金还得差不多了(容差处理)
-        if (state.loan.daysLeft <= 0 || state.loan.principal <= 1) {
+        // 结清判断
+        if (state.loan.daysLeft <= 0 || state.loan.principal <= 0.1) {
             state.loan.active = false;
             state.loan.principal = 0;
             spawnFloatText("贷款结清!", '#16a34a');
@@ -1504,25 +1555,26 @@ function updateUI() {
     const wRent = calcWeeklyRent();
     document.getElementById('ui-weekly-rent').innerText = `-$${wRent}`;
     
-    // 更新贷款卡片
+// 更新贷款卡片
     const loanCard = document.getElementById('card-loan-status');
     const loanPaymentEl = document.getElementById('ui-loan-payment');
     
     if (state.loan.active) {
         loanCard.className = "stat-card border-t-4 border-indigo-500 bg-indigo-50/50 cursor-pointer";
-        // 估算今日还款额（用于显示）
-        let estimate = 0;
-        if (state.loan.type === 'installment') estimate = Math.ceil(state.loan.totalRemaining / state.loan.daysLeft);
-        else {
-             // 简单估算：展示逻辑与结算逻辑一致
-             if(state.loan.daysLeft === 1) estimate = state.loan.totalRemaining;
-             else {
-                 const baseAvg = state.loan.totalRemaining / state.loan.daysLeft;
-                 const weight = 0.8 + (state.loan.daysLeft / state.loan.originalDays) * 0.4;
-                 estimate = Math.ceil(baseAvg * weight);
-             }
+        
+        let nextPayment = 0;
+        if (state.loan.type === 'installment') {
+            // 等额本息：还是那个固定的数
+            nextPayment = state.loan.fixedDaily;
+        } else {
+            // 等额本金：计算明天的还款额 (固定本金 + 当前剩余本金*利率)
+            // 注意：因为是预告“今日还款”，也就是下次结算时的金额，直接用当前本金算即可
+            const principalPart = state.loan.dailyBasePrincipal;
+            const interestPart = state.loan.principal * LOAN_DAILY_RATE;
+            nextPayment = Math.ceil(principalPart + interestPart);
         }
-        loanPaymentEl.innerText = `-$${estimate}`;
+        
+        loanPaymentEl.innerText = `-$${nextPayment}`;
     } else {
         loanCard.className = "stat-card border-t-4 border-slate-300 opacity-60 cursor-pointer";
         loanPaymentEl.innerText = "--";
