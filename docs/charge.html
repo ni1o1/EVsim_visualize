@@ -8,6 +8,12 @@
     <!-- 引入 ECharts -->
     <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
     <style>
+        /* 禁用双击缩放，但保留正常的滑动和单指点击 */
+button, 
+.game-container {
+    touch-action: manipulation;
+}
+
         body { 
             font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
             background-color: #f1f5f9; 
@@ -513,7 +519,7 @@
         <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6">
             <div class="flex justify-between items-center mb-4">
                 <h2 class="text-xl font-bold text-slate-800">🏦 银行贷款</h2>
-                <div class="text-xs text-slate-400 bg-slate-100 px-2 py-1 rounded">利率 15%</div>
+                <div class="text-xs text-slate-400 bg-slate-100 px-2 py-1 rounded font-mono">日利率 5.0%</div>
             </div>
 
             <!-- 贷款申请表单 -->
@@ -632,7 +638,24 @@
     </div>
 
 <script>
+
+    document.addEventListener('touchstart', function (event) {
+    if (event.touches.length > 1) {
+        event.preventDefault(); // 阻止多指缩放
+    }
+}, { passive: false });
+
+let lastTouchEnd = 0;
+document.addEventListener('touchend', function (event) {
+    const now = (new Date()).getTime();
+    if (now - lastTouchEnd <= 300) {
+        event.preventDefault(); // 300ms内的连续点击被视为双击，拦截掉
+    }
+    lastTouchEnd = now;
+}, false);
 // ================= 配置数据 =================
+// 日利率 2% (0.02)。你可以根据难度调整，比如简单0.01，困难0.03
+const LOAN_DAILY_RATE = 0.05;
 const CITY_CONFIG = {
     bj: { name: "北京", prices: [0.35, 0.35, 0.35, 0.35, 0.35, 0.35, 0.35, 0.75, 0.75, 0.75, 1.50, 1.50, 1.50, 0.75, 0.75, 0.75, 0.75, 1.50, 1.50, 1.50, 1.50, 1.50, 0.75, 0.35] },
     gz: { name: "广州", prices: [0.35, 0.35, 0.35, 0.35, 0.35, 0.35, 0.35, 0.35, 0.75, 0.75, 1.50, 1.50, 0.75, 0.75, 1.50, 1.50, 1.50, 1.50, 1.50, 0.75, 0.75, 0.75, 0.75, 0.75] },
@@ -848,54 +871,54 @@ function setLoanType(type) {
         : "border border-slate-200 text-slate-600 rounded-lg p-2 text-center cursor-pointer transition-colors";
     updateLoanPreview();
 }
-
 function updateLoanPreview() {
     const amt = parseInt(document.getElementById('loan-amt-slider').value);
     const days = parseInt(document.getElementById('loan-days-slider').value);
+    
     document.getElementById('loan-amt-val').innerText = `$${amt}`;
     document.getElementById('loan-days-val').innerText = `${days}天`;
 
-    const rate = 0.15; // 固定15%服务费率 (为了游戏简单化，视为总利息)
-    const totalRepay = Math.floor(amt * (1 + rate));
+    // === 新增：日利率计算逻辑 (等额本息公式 PMT) ===
+    const r = LOAN_DAILY_RATE;
+    // 公式: 每期还款 = 本金 * [利率 * (1+利率)^期数] / [(1+利率)^期数 - 1]
+    const pow = Math.pow(1 + r, days);
+    const dailyPayment = (amt * r * pow) / (pow - 1);
     
-    document.getElementById('loan-total-repay').innerText = `$${totalRepay}`;
+    const totalRepay = dailyPayment * days;
 
-    let firstDayRepay = 0;
-    if (loanConfig.type === 'installment') {
-        // 等额本息（简化版）：每天还固定的平均数
-        firstDayRepay = Math.ceil(totalRepay / days);
-    } else {
-        // 等额本金（简化版）：每天还固定的本金 + 剩余本金产生的日利息
-        // 这里为了游戏体验，简化为：首日还款 = (总额 / 天数) * 1.5，之后递减
-        // 实际上这不符合严格数学，但能体现"前期压力大"的特点
-        const base = Math.floor(totalRepay / days);
-        firstDayRepay = Math.floor(base * 1.4); 
-    }
-    document.getElementById('loan-daily-repay').innerText = `$${firstDayRepay}`;
+    // 更新 UI
+    document.getElementById('loan-total-repay').innerText = `$${Math.ceil(totalRepay)}`;
+    document.getElementById('loan-daily-repay').innerText = `$${Math.ceil(dailyPayment)}`;
+    
+    // 存储预览数据供 takeLoan 使用
+    window.previewLoanData = {
+        principal: amt,
+        days: days,
+        dailyPayment: Math.ceil(dailyPayment),
+        totalRepay: Math.ceil(totalRepay)
+    };
 }
-
 function takeLoan() {
-    const amt = parseInt(document.getElementById('loan-amt-slider').value);
-    const days = parseInt(document.getElementById('loan-days-slider').value);
-    const rate = 0.15; 
-    const totalRepay = Math.floor(amt * (1 + rate));
+    // 使用预览计算好的数据
+    const data = window.previewLoanData;
+    if (!data) return;
 
-    state.money += amt;
+    state.money += data.principal;
+    
     state.loan = {
         active: true,
-        principal: amt, // 记录原始本金用于计算
-        totalRemaining: totalRepay,
-        daysLeft: days,
-        type: loanConfig.type,
-        originalDays: days,
-        originalPrincipal: amt
+        principal: data.principal,           // 当前剩余本金
+        dailyPayment: data.dailyPayment,     // 每日固定还款额
+        daysLeft: data.days,                 // 剩余天数
+        type: 'installment',                 // 既然用了PMT，就统一为等额本息方便理解
+        totalRepaid: 0                       // 记录已还金额（统计用）
     };
 
-    spawnFloatText(`贷款 +$${amt}`, '#2563eb');
-    closeModal('loan-modal');
+    spawnFloatText(`贷款 +$${data.principal}`, '#2563eb');
+    closeLoanModal(); // 使用我们之前修复的函数
     updateUI();
-    setSpeed(state.lastGameSpeed);
 }
+
 function closeLoanModal() {
     closeModal('loan-modal');
     // 恢复到打开窗口前的速度
@@ -1265,51 +1288,34 @@ function dailySettle() {
     spawnFloatText(`日维护 -$${dailyCost}`, '#f97316');
     
     // === 贷款扣款逻辑 ===
+// === 贷款扣款逻辑 (日利率版) ===
     if (state.loan.active) {
-        let repayAmount = 0;
-        
-        if (state.loan.type === 'installment') {
-            // 等额本息：每天还款额固定
-            const totalRepay = state.loan.totalRemaining; 
-            const days = state.loan.daysLeft;
-            // 注意：因为totalRemaining包含利息，直接除即可。
-            // 但为了保证能除尽，我们用 ceil 向上取整，最后一天还剩下的
-            if (days === 1) {
-                repayAmount = state.loan.totalRemaining;
-            } else {
-                repayAmount = Math.ceil(state.loan.totalRemaining / days);
-            }
-        } else {
-            // 等额本金：每天还固定本金 + 剩余本金的利息
-            // 简化逻辑：本金部分 + 利息部分
-            // 每天本金 = 原始总还款 / 原始天数 * 0.8 (基础) + 浮动
-            // 简单实现：剩余金额 / 剩余天数 + 一个基于剩余天数的衰减系数
-            // 算了，直接写死一个衰减逻辑：
-            // 每天还款 = (剩余总额 / 剩余天数) * (1 + (剩余天数/原始天数)*0.3)
-            // 这样初期还的多
-             if (state.loan.daysLeft === 1) {
-                repayAmount = state.loan.totalRemaining;
-            } else {
-                const baseAvg = state.loan.totalRemaining / state.loan.daysLeft;
-                const weight = 0.8 + (state.loan.daysLeft / state.loan.originalDays) * 0.4;
-                repayAmount = Math.ceil(baseAvg * weight);
-            }
-        }
-        
-        // 确保不超额
-        repayAmount = Math.min(repayAmount, state.loan.totalRemaining);
+        // 1. 获取每日固定还款额
+        let payAmount = state.loan.dailyPayment;
 
-        state.money -= repayAmount;
-        state.loan.totalRemaining -= repayAmount;
+        // 2. 扣钱
+        // 如果钱不够，就扣光（导致破产），这里简单处理为直接扣
+        state.money -= payAmount;
+        
+        // 3. 计算利息部分和本金部分 (仅用于数据追踪，实际上PMT模型下无需每日重算，只需倒扣天数)
+        // 当天利息 = 剩余本金 * 日利率
+        const interestToday = state.loan.principal * LOAN_DAILY_RATE;
+        const principalRepaid = payAmount - interestToday;
+
+        // 4. 更新剩余本金
+        state.loan.principal -= principalRepaid;
         state.loan.daysLeft--;
-        // 估算剩余本金（仅用于展示），按比例扣除
-        state.loan.principal = Math.max(0, state.loan.principal - (state.loan.principal / (state.loan.daysLeft + 1)));
+        state.loan.totalRepaid += payAmount;
 
-        spawnFloatText(`还贷 -$${repayAmount}`, '#4f46e5');
+        // 浮动文字显示详情
+        spawnFloatText(`还贷 -$${payAmount} (息$${interestToday.toFixed(0)})`, '#4f46e5');
 
-        if (state.loan.daysLeft <= 0 || state.loan.totalRemaining <= 0) {
+        // 5. 检查是否还清
+        // 如果天数到了，或者本金还得差不多了(容差处理)
+        if (state.loan.daysLeft <= 0 || state.loan.principal <= 1) {
             state.loan.active = false;
-            spawnFloatText("贷款还清!", '#16a34a');
+            state.loan.principal = 0;
+            spawnFloatText("贷款结清!", '#16a34a');
         }
     }
 
